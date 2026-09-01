@@ -22,6 +22,9 @@
     <Filter Include="ViewModels">
       <UniqueIdentifier>{E4F5A6B7-C8D9-40E1-F2A3-B4C5D6E7F8A9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Platform">
+      <UniqueIdentifier>{F5A6B7C8-D9E0-41F2-A3B4-C5D6E7F8A9B0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
@@ -49,6 +52,7 @@
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="App.xaml.cpp" />
     <ClCompile Include="MainWindow.xaml.cpp" />
+    <ClCompile Include="ViewModels\CleanViewModel.cpp"><Filter>ViewModels</Filter></ClCompile>
     <ClCompile Include="Views\CleanPage.xaml.cpp"><Filter>Views</Filter></ClCompile>
     <ClCompile Include="Views\AnalyzePage.xaml.cpp"><Filter>Views</Filter></ClCompile>
     <ClCompile Include="Views\SoftwarePage.xaml.cpp"><Filter>Views</Filter></ClCompile>
@@ -67,6 +71,11 @@
     <ClInclude Include="Core\ProtectionList.h"><Filter>Core</Filter></ClInclude>
     <ClInclude Include="Core\SizeCalculator.h"><Filter>Core</Filter></ClInclude>
     <ClInclude Include="Core\OperationLog.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\CleanCategoryProber.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\FileScanner.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\WhitelistStore.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Platform\ShellOperations.h"><Filter>Platform</Filter></ClInclude>
+    <ClInclude Include="ViewModels\CleanViewModel.h"><Filter>ViewModels</Filter></ClInclude>
     <ClInclude Include="Core\SystemMonitorContracts.h"><Filter>Core</Filter></ClInclude>
     <ClInclude Include="Helpers\AppSettings.h"><Filter>Helpers</Filter></ClInclude>
     <ClInclude Include="ViewModels\ViewModelBase.h"><Filter>ViewModels</Filter></ClInclude>

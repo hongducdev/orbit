@@ -8,21 +8,181 @@
     NavigationCacheMode="Enabled"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="32">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="560">
-            <FontIcon Glyph="&#xE774;" Style="{StaticResource OrbitPlaceholderIconStyle}" Foreground="{StaticResource OrbitEarthBrush}" AutomationProperties.Name="Clean icon" />
-            <TextBlock Text="Earth — Clean" Style="{StaticResource OrbitTitleTextStyle}" HorizontalAlignment="Center" FontSize="28" />
-            <TextBlock Text="Review-first cache cleaner. Hardlink-aware sizing, movable to Recycle Bin, conservative whitelist."
-                       TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
-                       Style="{StaticResource OrbitBodySecondaryStyle}" />
-            <Border Style="{StaticResource MoleCardStyle}" Margin="0,12,0,0">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Coming in Phase 3" FontWeight="SemiBold" />
-                    <TextBlock Text="Categories: User Temp, System Temp, Windows Update, Delivery Optimization, Thumbnail cache, Shader cache, Browser temp, Dev caches, WER, Recycle Bin."
-                               TextWrapping="Wrap" Opacity="0.7" />
-                    <HyperlinkButton Content="Mole reference — mo clean" NavigateUri="https://mole.fit" />
-                </StackPanel>
-            </Border>
+    <Grid x:Name="RootGrid" Padding="32" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <FontIcon
+                Glyph="&#xE774;"
+                FontSize="32"
+                Foreground="{StaticResource OrbitEarthBrush}"
+                AutomationProperties.Name="Clean icon" />
+            <StackPanel Spacing="2">
+                <TextBlock
+                    Text="Earth — Clean"
+                    Style="{StaticResource OrbitTitleTextStyle}"
+                    FontSize="28"
+                    AutomationProperties.HeadingLevel="Level1" />
+                <TextBlock
+                    Text="Scan first, review what is selected, then clean with Windows safeguards."
+                    Style="{StaticResource OrbitBodySecondaryStyle}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="ScanButton"
+                Content="Scan caches"
+                Style="{StaticResource AccentButtonStyle}"
+                Click="ScanButton_Click"
+                AutomationProperties.Name="Scan caches" />
+            <Button
+                x:Name="CancelButton"
+                Grid.Column="1"
+                Content="Cancel scan"
+                Click="CancelButton_Click"
+                Visibility="Collapsed"
+                AutomationProperties.Name="Cancel cache scan" />
+            <ToggleSwitch
+                x:Name="RiskyToggle"
+                Grid.Column="2"
+                HorizontalAlignment="Right"
+                Header="Show risky items"
+                Toggled="RiskyToggle_Toggled"
+                AutomationProperties.Name="Show risky items; risky items are never selected automatically" />
+            <Button
+                x:Name="WhitelistButton"
+                Grid.Column="3"
+                Content="Add protection"
+                AutomationProperties.Name="Add whitelist protection pattern">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Width="340" Spacing="8">
+                            <TextBlock Text="Protect paths from future scans" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Enter an absolute path or glob pattern such as **\important\**."
+                                Style="{StaticResource OrbitBodySecondaryStyle}"
+                                TextWrapping="Wrap" />
+                            <TextBox
+                                x:Name="WhitelistPatternBox"
+                                Header="Path or pattern"
+                                PlaceholderText="C:\path or **\pattern\**"
+                                AutomationProperties.Name="Whitelist path or pattern" />
+                            <Button
+                                Content="Add pattern"
+                                HorizontalAlignment="Right"
+                                Click="AddWhitelist_Click" />
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+
+            <AutoSuggestBox
+                x:Name="SearchBox"
+                Grid.Row="1"
+                Grid.ColumnSpan="4"
+                QueryIcon="Find"
+                PlaceholderText="Search categories or paths"
+                TextChanged="SearchBox_TextChanged"
+                AutomationProperties.Name="Search scan results by category or path" />
+            <ProgressBar
+                x:Name="ScanProgress"
+                Grid.Row="2"
+                Grid.ColumnSpan="4"
+                IsIndeterminate="True"
+                Visibility="Collapsed"
+                AutomationProperties.Name="Scanning cache categories" />
+        </Grid>
+
+        <InfoBar
+            x:Name="FeedbackBar"
+            Grid.Row="2"
+            IsOpen="False"
+            IsClosable="True"
+            AutomationProperties.LiveSetting="Polite" />
+
+        <Grid Grid.Row="3">
+            <StackPanel
+                x:Name="EmptyState"
+                MaxWidth="520"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="8">
+                <FontIcon
+                    Glyph="&#xE9D9;"
+                    FontSize="40"
+                    Foreground="{StaticResource OrbitEarthBrush}" />
+                <TextBlock
+                    x:Name="EmptyStateTitle"
+                    Text="Ready to scan"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    HorizontalAlignment="Center" />
+                <TextBlock
+                    x:Name="EmptyStateMessage"
+                    Text="Scanning is a dry run. Orbit will not change files until you review and confirm."
+                    TextAlignment="Center"
+                    TextWrapping="Wrap"
+                    Style="{StaticResource OrbitBodySecondaryStyle}" />
+            </StackPanel>
+            <ListView
+                x:Name="CategoryList"
+                SelectionMode="None"
+                IsItemClickEnabled="False"
+                Visibility="Collapsed"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.Name="Cache scan categories" />
+        </Grid>
+
+        <Border
+            x:Name="ActionBar"
+            Grid.Row="4"
+            Style="{StaticResource MoleCardStyle}"
+            Visibility="Collapsed">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock
+                        x:Name="SelectionSummary"
+                        Text="No files selected"
+                        FontWeight="SemiBold" />
+                    <TextBlock
+                        x:Name="ScanStatusText"
+                        Text="Ready to scan"
+                        Style="{StaticResource OrbitBodySecondaryStyle}"
+                        AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+                <Button
+                    x:Name="CleanButton"
+                    Grid.Column="1"
+                    Content="Move to Recycle Bin"
+                    Style="{StaticResource AccentButtonStyle}"
+                    IsEnabled="False"
+                    Click="CleanButton_Click"
+                    AutomationProperties.Name="Clean selected files" />
+            </Grid>
+        </Border>
     </Grid>
 </Page>

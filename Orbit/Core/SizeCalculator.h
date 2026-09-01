@@ -30,143 +30,177 @@ struct FileIdentityHash
     }
 };
 
+struct FileSizeResult
+{
+    uint64_t size{ 0 };
+    FileIdentity identity{};
+    bool isHardlink{ false };
+    bool duplicateHardlink{ false };
+    bool usedFallback{ false };
+};
+
 // SizeCalculator — hardlink-aware sizing. Hardlink dedup only for nNumberOfLinks>1 to bound memory.
 class SizeCalculator
 {
 public:
     static constexpr int kMaxDepth = 256;
 
-    static uint64_t FileSizeHardlinkAware(std::wstring_view path, std::unordered_set<FileIdentity, FileIdentityHash>& seen) noexcept
+    static FileSizeResult MeasureFile(
+        std::wstring_view path,
+        std::unordered_set<FileIdentity, FileIdentityHash>& seen,
+        uint64_t fallbackSize = 0) noexcept
     {
-        std::wstring wpath(path);
-        // Long-path support: prefix \\?\ if needed and not already present
-        std::wstring probePath = EnsureLongPath(wpath);
-
-        HANDLE h = ::CreateFileW(
+        FileSizeResult result;
+        std::wstring probePath = EnsureLongPath(std::wstring(path));
+        HANDLE handle = ::CreateFileW(
             probePath.c_str(),
-            0,
+            FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             nullptr,
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
             nullptr);
-        if (h == INVALID_HANDLE_VALUE)
-            return 0;
+
+        if (handle == INVALID_HANDLE_VALUE)
+        {
+            result.size = fallbackSize ? fallbackSize : LogicalFileSize(probePath);
+            result.usedFallback = true;
+            return result;
+        }
 
         BY_HANDLE_FILE_INFORMATION info{};
-        BOOL ok = ::GetFileInformationByHandle(h, &info);
-        if (!ok)
+        if (!::GetFileInformationByHandle(handle, &info))
         {
-            ::CloseHandle(h);
-            return 0;
-        }
-        DWORD attrs = info.dwFileAttributes;
-        if ((attrs & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0)
-        {
-            ::CloseHandle(h);
-            return 0;
-        }
-        if ((attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0 && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0)
-        {
-            ::CloseHandle(h);
-            return 0;
+            ::CloseHandle(handle);
+            result.size = fallbackSize ? fallbackSize : LogicalFileSize(probePath);
+            result.usedFallback = true;
+            return result;
         }
 
-        // Only track hardlinks — bound seen set (H1 fix)
+        if ((info.dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0 ||
+            ((info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 &&
+             (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0))
+        {
+            ::CloseHandle(handle);
+            return result;
+        }
+
         if (info.nNumberOfLinks > 1)
         {
-            FileIdentity id{ info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow };
-            if (seen.find(id) != seen.end())
+            result.isHardlink = true;
+            result.identity = {
+                info.dwVolumeSerialNumber,
+                info.nFileIndexHigh,
+                info.nFileIndexLow
+            };
+            if (!seen.insert(result.identity).second)
             {
-                ::CloseHandle(h);
-                return 0;
+                result.duplicateHardlink = true;
+                ::CloseHandle(handle);
+                return result;
             }
-            seen.insert(id);
         }
 
+        ::SetLastError(NO_ERROR);
         DWORD high = 0;
         DWORD low = ::GetCompressedFileSizeW(probePath.c_str(), &high);
-        DWORD err = ::GetLastError(); // cache once (H3 fix)
-        uint64_t size = 0;
-        if (low == INVALID_FILE_SIZE && err != NO_ERROR)
+        DWORD error = ::GetLastError();
+        if (low == INVALID_FILE_SIZE && error != NO_ERROR)
         {
-            size = (static_cast<uint64_t>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
-        }
-        else if (low == INVALID_FILE_SIZE && err == NO_ERROR)
-        {
-            // File is exactly 0xFFFFFFFF bytes compressed — valid, size is high:low
-            size = (static_cast<uint64_t>(high) << 32) | low;
+            result.size =
+                (static_cast<uint64_t>(info.nFileSizeHigh) << 32) |
+                info.nFileSizeLow;
+            result.usedFallback = true;
         }
         else
         {
-            // low != INVALID_FILE_SIZE -> high is valid
-            size = (static_cast<uint64_t>(high) << 32) | low;
+            result.size = (static_cast<uint64_t>(high) << 32) | low;
         }
 
-        ::CloseHandle(h);
-        return size;
+        ::CloseHandle(handle);
+        return result;
+    }
+
+    static uint64_t FileSizeHardlinkAware(
+        std::wstring_view path,
+        std::unordered_set<FileIdentity, FileIdentityHash>& seen) noexcept
+    {
+        return MeasureFile(path, seen).size;
     }
 
     static uint64_t FileSizeHardlinkAware(std::wstring_view path) noexcept
     {
         std::unordered_set<FileIdentity, FileIdentityHash> seen;
-        return FileSizeHardlinkAware(path, seen);
+        return MeasureFile(path, seen).size;
     }
 
-    static uint64_t DirectorySize(std::wstring_view root, std::unordered_set<FileIdentity, FileIdentityHash>& seen, int depth = 0) noexcept
+    static uint64_t DirectorySize(
+        std::wstring_view root,
+        std::unordered_set<FileIdentity, FileIdentityHash>& seen,
+        int depth = 0) noexcept
     {
-        if (depth > kMaxDepth) return 0; // H5: bound recursion
+        if (depth > kMaxDepth)
+        {
+            return 0;
+        }
 
-        std::wstring wroot(root);
-        std::wstring pattern = wroot;
+        std::wstring rootPath(root);
+        std::wstring pattern = rootPath;
         if (!pattern.empty() && pattern.back() != L'\\' && pattern.back() != L'/')
+        {
             pattern += L"\\";
-        pattern += L"*";
-        pattern = EnsureLongPath(pattern);
+        }
+        pattern = EnsureLongPath(pattern + L"*");
 
-        WIN32_FIND_DATAW fd{};
-        HANDLE hFind = ::FindFirstFileExW(
+        WIN32_FIND_DATAW data{};
+        HANDLE findHandle = ::FindFirstFileExW(
             pattern.c_str(),
             FindExInfoBasic,
-            &fd,
+            &data,
             FindExSearchNameMatch,
             nullptr,
             FIND_FIRST_EX_LARGE_FETCH);
-        if (hFind == INVALID_HANDLE_VALUE)
+        if (findHandle == INVALID_HANDLE_VALUE)
+        {
             return 0;
+        }
 
         uint64_t total = 0;
         do
         {
-            std::wstring name = fd.cFileName;
-            if (name == L"." || name == L"..")
-                continue;
-            if (_wcsicmp(name.c_str(), L"System Volume Information") == 0 ||
+            std::wstring name = data.cFileName;
+            if (name == L"." || name == L".." ||
+                _wcsicmp(name.c_str(), L"System Volume Information") == 0 ||
                 _wcsicmp(name.c_str(), L"$Recycle.Bin") == 0)
-                continue;
-            if ((fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
             {
-                if ((fd.dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0)
-                    continue;
-                if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
-                    continue;
+                continue;
+            }
+            if ((data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+            {
+                continue;
             }
 
-            std::wstring full = wroot;
-            if (!full.empty() && full.back() != L'\\' && full.back() != L'/')
-                full += L"\\";
-            full += name;
-
-            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            std::wstring fullPath = rootPath;
+            if (!fullPath.empty() && fullPath.back() != L'\\' && fullPath.back() != L'/')
             {
-                total += DirectorySize(full, seen, depth + 1);
+                fullPath += L"\\";
+            }
+            fullPath += name;
+
+            if ((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+            {
+                total += DirectorySize(fullPath, seen, depth + 1);
             }
             else
             {
-                total += FileSizeHardlinkAware(full, seen);
+                uint64_t fallback =
+                    (static_cast<uint64_t>(data.nFileSizeHigh) << 32) |
+                    data.nFileSizeLow;
+                total += MeasureFile(fullPath, seen, fallback).size;
             }
-        } while (::FindNextFileW(hFind, &fd));
-        ::FindClose(hFind);
+        } while (::FindNextFileW(findHandle, &data));
+
+        ::FindClose(findHandle);
         return total;
     }
 
@@ -177,17 +211,32 @@ public:
     }
 
 private:
-    static std::wstring EnsureLongPath(const std::wstring& s)
+    static uint64_t LogicalFileSize(const std::wstring& path) noexcept
     {
-        if (s.rfind(L"\\\\?\\", 0) == 0 || s.rfind(L"\\\\.\\", 0) == 0)
-            return s;
-        if (s.size() >= 260)
+        WIN32_FILE_ATTRIBUTE_DATA data{};
+        if (!::GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &data))
         {
-            if (s.rfind(L"\\\\", 0) == 0)
-                return L"\\\\?\\UNC\\" + s.substr(2);
-            return L"\\\\?\\" + s;
+            return 0;
         }
-        return s;
+        return (static_cast<uint64_t>(data.nFileSizeHigh) << 32) |
+            data.nFileSizeLow;
+    }
+
+    static std::wstring EnsureLongPath(const std::wstring& path)
+    {
+        if (path.rfind(L"\\\\?\\", 0) == 0 || path.rfind(L"\\\\.\\", 0) == 0)
+        {
+            return path;
+        }
+        if (path.size() >= MAX_PATH)
+        {
+            if (path.rfind(L"\\\\", 0) == 0)
+            {
+                return L"\\\\?\\UNC\\" + path.substr(2);
+            }
+            return L"\\\\?\\" + path;
+        }
+        return path;
     }
 };
 

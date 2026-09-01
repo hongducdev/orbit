@@ -8,8 +8,8 @@
 #include "Helpers/AppSettings.h"
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
-using namespace Microsoft::UI::Xaml::Controls;
+using namespace winrt::Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml::Controls;
 
 namespace winrt::Orbit::implementation
 {
@@ -34,17 +34,17 @@ namespace winrt::Orbit::implementation
     void SettingsPage::ApplySettingsToUI()
     {
         // Planet animation
-        PlanetAnimationToggle().IsOn(Helpers::AppSettings::PlanetAnimationEnabled());
+        PlanetAnimationToggle().IsOn(::Orbit::Helpers::AppSettings::PlanetAnimationEnabled());
 
         // Theme
-        auto theme = Helpers::AppSettings::Theme();
+        auto theme = ::Orbit::Helpers::AppSettings::Theme();
         int idx = 0;
         if (theme == L"light") idx = 1;
         else if (theme == L"dark") idx = 2;
         ThemeCombo().SelectedIndex(idx);
 
         // Delete mode
-        auto dm = Helpers::AppSettings::DeleteMode();
+        auto dm = ::Orbit::Helpers::AppSettings::DeleteMode();
         DeleteModeCombo().SelectedIndex(dm == L"permanent" ? 1 : 0);
     }
 
@@ -52,7 +52,7 @@ namespace winrt::Orbit::implementation
     {
         if (m_loading) return;
         auto toggle = sender.as<ToggleSwitch>();
-        Helpers::AppSettings::PlanetAnimationEnabled(toggle.IsOn());
+        ::Orbit::Helpers::AppSettings::PlanetAnimationEnabled(toggle.IsOn());
     }
 
     void SettingsPage::ThemeCombo_SelectionChanged(IInspectable const&, SelectionChangedEventArgs const&)
@@ -61,8 +61,8 @@ namespace winrt::Orbit::implementation
         auto item = ThemeCombo().SelectedItem().try_as<ComboBoxItem>();
         if (!item) return;
         auto tag = unbox_value<hstring>(item.Tag());
-        Helpers::AppSettings::Theme(tag);
-        this->RequestedTheme(Helpers::AppSettings::ToElementTheme(tag));
+        ::Orbit::Helpers::AppSettings::Theme(tag);
+        this->RequestedTheme(::Orbit::Helpers::AppSettings::ToElementTheme(tag));
     }
 
     void SettingsPage::DeleteModeCombo_SelectionChanged(IInspectable const&, SelectionChangedEventArgs const&)
@@ -71,6 +71,6 @@ namespace winrt::Orbit::implementation
         auto item = DeleteModeCombo().SelectedItem().try_as<ComboBoxItem>();
         if (!item) return;
         auto tag = unbox_value<hstring>(item.Tag());
-        Helpers::AppSettings::DeleteMode(tag);
+        ::Orbit::Helpers::AppSettings::DeleteMode(tag);
     }
 }

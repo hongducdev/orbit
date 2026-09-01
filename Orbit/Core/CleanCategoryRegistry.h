@@ -55,7 +55,7 @@ public:
             { CleanCategoryId::DevCaches, L"Dev Caches", L"npm / Yarn / pnpm / NuGet / VS / pip", CleanTier::Review, true },
             { CleanCategoryId::WerReports, L"Windows Error Reports", L"WER ReportQueue / ReportArchive", CleanTier::Safe, true },
             { CleanCategoryId::Prefetch, L"Prefetch (hint)", L"C:\\Windows\\Prefetch — size only, no delete", CleanTier::Risky, false },
-            { CleanCategoryId::RecycleBin, L"Recycle Bin", L"Per-drive Recycle Bin size", CleanTier::Review, true },
+            { CleanCategoryId::RecycleBin, L"Recycle Bin", L"Per-drive size — emptying is always explicit", CleanTier::Review, false },
         };
         return kAll;
     }

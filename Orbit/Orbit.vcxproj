@@ -94,8 +94,12 @@
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
       <WarningLevel>Level4</WarningLevel>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalOptions>%(AdditionalOptions) /bigobj</AdditionalOptions>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /utf-8</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(GeneratedFilesDir)Views;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>shell32.lib;ole32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
@@ -131,6 +135,11 @@
     <ClInclude Include="Core\ProtectionList.h" />
     <ClInclude Include="Core\SizeCalculator.h" />
     <ClInclude Include="Core\OperationLog.h" />
+    <ClInclude Include="Core\CleanCategoryProber.h" />
+    <ClInclude Include="Core\FileScanner.h" />
+    <ClInclude Include="Core\WhitelistStore.h" />
+    <ClInclude Include="Platform\ShellOperations.h" />
+    <ClInclude Include="ViewModels\CleanViewModel.h" />
     <ClInclude Include="Core\SystemMonitorContracts.h" />
     <ClInclude Include="Helpers\AppSettings.h" />
     <ClInclude Include="ViewModels\ViewModelBase.h" />
@@ -186,6 +195,7 @@
     <ClCompile Include="MainWindow.xaml.cpp">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="ViewModels\CleanViewModel.cpp" />
     <ClCompile Include="Views\CleanPage.xaml.cpp">
       <DependentUpon>CleanPage.xaml</DependentUpon>
     </ClCompile>

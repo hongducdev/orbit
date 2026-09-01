@@ -15,10 +15,12 @@
 #include <microsoft.ui.xaml.window.h>
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
-using namespace Microsoft::UI::Xaml::Controls;
-using namespace Microsoft::UI::Xaml::Input;
-using namespace Windows::Foundation;
+using namespace winrt::Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml::Controls;
+using namespace winrt::Microsoft::UI::Xaml::Input;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::UI::Xaml::Interop;
+
 
 namespace winrt::Orbit::implementation
 {
@@ -37,22 +39,19 @@ namespace winrt::Orbit::implementation
             auto hwnd = GetWindowHandle();
             if (hwnd)
             {
-                auto windowId = Microsoft::UI::GetWindowIdFromWindow(hwnd);
-                auto appWindow = Microsoft::UI::Windowing::AppWindow::GetFromWindowId(windowId);
-                if (appWindow)
+                RECT bounds{};
+                if (::GetWindowRect(hwnd, &bounds))
                 {
-                    auto current = appWindow.Size();
-                    int32_t w = (std::max)(current.Width, (int32_t)1080);
-                    int32_t h = (std::max)(current.Height, (int32_t)720);
-                    if (w != current.Width || h != current.Height)
-                    {
-                        appWindow.Resize({ w, h });
-                    }
-                    if (auto presenter = appWindow.Presenter().try_as<Microsoft::UI::Windowing::OverlappedPresenter>())
-                    {
-                        presenter.IsResizable(true);
-                        presenter.IsMaximizable(true);
-                    }
+                    int32_t width = (std::max)(bounds.right - bounds.left, 1080L);
+                    int32_t height = (std::max)(bounds.bottom - bounds.top, 720L);
+                    ::SetWindowPos(
+                        hwnd,
+                        nullptr,
+                        0,
+                        0,
+                        width,
+                        height,
+                        SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
                 }
             }
         }
@@ -67,13 +66,13 @@ namespace winrt::Orbit::implementation
     {
         try
         {
-            if (Media::MicaBackdrop::IsSupported())
+            if (winrt::Microsoft::UI::Composition::SystemBackdrops::MicaController::IsSupported())
             {
-                SystemBackdrop(Media::MicaBackdrop{});
+                SystemBackdrop(winrt::Microsoft::UI::Xaml::Media::MicaBackdrop{});
             }
             else
             {
-                SystemBackdrop(Media::DesktopAcrylicBackdrop{});
+                SystemBackdrop(winrt::Microsoft::UI::Xaml::Media::DesktopAcrylicBackdrop{});
             }
         }
         catch (...) {}
@@ -83,8 +82,8 @@ namespace winrt::Orbit::implementation
     {
         try
         {
-            auto theme = Helpers::AppSettings::Theme();
-            auto elemTheme = Helpers::AppSettings::ToElementTheme(theme);
+            auto theme = ::Orbit::Helpers::AppSettings::Theme();
+            auto elemTheme = ::Orbit::Helpers::AppSettings::ToElementTheme(theme);
             if (auto nv = NavView())
             {
                 nv.RequestedTheme(elemTheme);
@@ -120,31 +119,31 @@ namespace winrt::Orbit::implementation
 
             if (tag == L"Clean")
             {
-                frame.Navigate(xaml_typename<Orbit::CleanPage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::CleanPage>());
             }
             else if (tag == L"Analyze")
             {
-                frame.Navigate(xaml_typename<Orbit::AnalyzePage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::AnalyzePage>());
             }
             else if (tag == L"Software")
             {
-                frame.Navigate(xaml_typename<Orbit::SoftwarePage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::SoftwarePage>());
             }
             else if (tag == L"Optimize")
             {
-                frame.Navigate(xaml_typename<Orbit::OptimizePage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::OptimizePage>());
             }
             else if (tag == L"Status")
             {
-                frame.Navigate(xaml_typename<Orbit::StatusPage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::StatusPage>());
             }
             else if (tag == L"Settings")
             {
-                frame.Navigate(xaml_typename<Orbit::SettingsPage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::SettingsPage>());
             }
             else if (tag == L"Doctor")
             {
-                frame.Navigate(xaml_typename<Orbit::SettingsPage>());
+                frame.Navigate(winrt::xaml_typename<winrt::Orbit::SettingsPage>());
             }
         }
         catch (...) {}
