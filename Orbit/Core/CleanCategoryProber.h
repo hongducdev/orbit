@@ -131,7 +131,8 @@ public:
                 addIfExists(userProfile + L"\\.pnpm-store");
                 addIfExists(userProfile + L"\\.cache\\pip");
                 addIfExists(userProfile + L"\\AppData\\Local\\pip\\Cache");
-                // Also NuGet http-cache
+                // NuGet: HTTP cache only (v3-cache metadata), NOT global-packages (actual DLLs)
+                // Per requirement: "NuGet packages *metadata only — never auto-delete package payloads*"
                 if (!localAppData.empty()) addIfExists(localAppData + L"\\NuGet\\v3-cache");
                 addIfExists(userProfile + L"\\.nuget\\v3-cache");
             }

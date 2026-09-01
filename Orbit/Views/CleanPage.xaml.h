@@ -36,6 +36,12 @@ namespace winrt::Orbit::implementation
         void CleanButton_Click(
             winrt::Windows::Foundation::IInspectable const&,
             winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+        void EmptyRecycleBinButton_Click(
+            winrt::Windows::Foundation::IInspectable const&,
+            winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
+        void ViewLogButton_Click(
+            winrt::Windows::Foundation::IInspectable const&,
+            winrt::Microsoft::UI::Xaml::RoutedEventArgs const&);
 
     private:
         static constexpr size_t kInitialVisibleFiles = 250;

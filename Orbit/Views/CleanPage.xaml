@@ -118,7 +118,15 @@
             Grid.Row="2"
             IsOpen="False"
             IsClosable="True"
-            AutomationProperties.LiveSetting="Polite" />
+            AutomationProperties.LiveSetting="Polite">
+            <InfoBar.ActionButton>
+                <Button
+                    x:Name="ViewLogButton"
+                    Content="View log"
+                    Visibility="Collapsed"
+                    Click="ViewLogButton_Click" />
+            </InfoBar.ActionButton>
+        </InfoBar>
 
         <Grid Grid.Row="3">
             <StackPanel
@@ -162,6 +170,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Spacing="2" VerticalAlignment="Center">
                     <TextBlock
@@ -175,8 +184,14 @@
                         AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
                 <Button
-                    x:Name="CleanButton"
+                    x:Name="EmptyRecycleBinButton"
                     Grid.Column="1"
+                    Content="Empty Recycle Bin"
+                    Click="EmptyRecycleBinButton_Click"
+                    AutomationProperties.Name="Empty the Recycle Bin (all drives)" />
+                <Button
+                    x:Name="CleanButton"
+                    Grid.Column="2"
                     Content="Move to Recycle Bin"
                     Style="{StaticResource AccentButtonStyle}"
                     IsEnabled="False"

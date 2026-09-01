@@ -7,6 +7,7 @@
 #endif
 
 #include "../Helpers/AppSettings.h"
+#include "../Core/OperationLog.h"
 
 #include <algorithm>
 #include <numeric>
@@ -120,6 +121,29 @@ namespace winrt::Orbit::implementation
         ConfirmAndCleanAsync();
     }
 
+    void CleanPage::EmptyRecycleBinButton_Click(IInspectable const&, RoutedEventArgs const&)
+    {
+        ConfirmEmptyRecycleBinAsync();
+    }
+
+    void CleanPage::ViewLogButton_Click(IInspectable const&, RoutedEventArgs const&)
+    {
+        auto logPath = ::Orbit::Core::OperationLog::LogFilePath();
+        auto folderPath = logPath.parent_path();
+        try
+        {
+            winrt::Windows::System::Launcher::LaunchFolderPathAsync(
+                hstring(folderPath.wstring()));
+        }
+        catch (...)
+        {
+            ShowFeedback(
+                L"Cannot open log folder",
+                L"The operation history folder could not be opened.",
+                InfoBarSeverity::Error);
+        }
+    }
+
     fire_and_forget CleanPage::StartScanAsync()
     {
         auto lifetime = get_strong();
@@ -225,7 +249,7 @@ namespace winrt::Orbit::implementation
             wchar_t message[256]{};
             swprintf_s(
                 message,
-                L"%zu items cleaned. %s",
+                L"%zu items cleaned. %s Operation logged to history.jsonl.",
                 result.completedCount,
                 permanent
                     ? L"Files were permanently deleted."
@@ -243,6 +267,67 @@ namespace winrt::Orbit::implementation
                     ? hstring(L"Windows did not complete the operation.")
                     : hstring(result.error),
                 result.IsPartial() ? InfoBarSeverity::Warning : InfoBarSeverity::Error);
+        }
+    }
+
+    fire_and_forget CleanPage::ConfirmEmptyRecycleBinAsync()
+    {
+        auto lifetime = get_strong();
+        if (!m_viewModel->CanScan()) co_return;
+
+        auto recycleBinBytes = ::Orbit::Platform::ShellOperations::GetRecycleBinSizeBytes();
+        auto recycleBinCount = ::Orbit::Platform::ShellOperations::GetRecycleBinItemCount();
+        
+        if (recycleBinCount == 0)
+        {
+            ShowFeedback(
+                L"Recycle Bin is empty",
+                L"There are no items to delete.",
+                InfoBarSeverity::Informational);
+            co_return;
+        }
+
+        wchar_t summary[256]{};
+        swprintf_s(
+            summary,
+            L"The Recycle Bin contains %u items (%s). Emptying permanently deletes them.",
+            recycleBinCount,
+            ::Orbit::Platform::ShellOperations::FormatBytes(recycleBinBytes).c_str());
+
+        ContentDialog confirmation;
+        confirmation.XamlRoot(XamlRoot());
+        confirmation.Title(box_value(L"Empty Recycle Bin?"));
+        confirmation.Content(box_value(hstring(summary)));
+        confirmation.PrimaryButtonText(L"Empty Recycle Bin");
+        confirmation.CloseButtonText(L"Cancel");
+        confirmation.DefaultButton(ContentDialogButton::Close);
+        if (co_await confirmation.ShowAsync() != ContentDialogResult::Primary)
+        {
+            co_return;
+        }
+
+        auto operation = m_viewModel->EmptyRecycleBinAsync();
+        UpdateControls();
+        co_await operation;
+        RenderResults();
+        UpdateControls();
+
+        auto const& result = m_viewModel->lastDeleteResult;
+        if (result.succeeded)
+        {
+            ShowFeedback(
+                L"Recycle Bin emptied",
+                L"All recycled items were permanently deleted.",
+                InfoBarSeverity::Success);
+        }
+        else
+        {
+            ShowFeedback(
+                L"Could not empty Recycle Bin",
+                result.error.empty()
+                    ? hstring(L"Windows did not complete the operation.")
+                    : hstring(result.error),
+                InfoBarSeverity::Error);
         }
     }
 
@@ -322,6 +407,27 @@ namespace winrt::Orbit::implementation
             m_viewModel->SelectedFormatted().c_str());
         SelectionSummary().Text(selection);
         ScanStatusText().Text(hstring(m_viewModel->scanStatus));
+        
+        // Enable Empty Recycle Bin button if not busy and Recycle Bin has items
+        // Check directly via ShellOperations if not scanned yet, or via category data if scanned
+        bool hasRecycleBinItems = false;
+        if (m_hasScanned)
+        {
+            for (auto const& cat : m_viewModel->categories)
+            {
+                if (cat.id == ::Orbit::Core::CleanCategoryId::RecycleBin && cat.fileCount > 0)
+                {
+                    hasRecycleBinItems = true;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            hasRecycleBinItems = ::Orbit::Platform::ShellOperations::GetRecycleBinItemCount() > 0;
+        }
+        EmptyRecycleBinButton().IsEnabled(!busy && hasRecycleBinItems);
+        
         CleanButton().Content(box_value(
             deleting
                 ? L"Cleaning…"
@@ -342,6 +448,13 @@ namespace winrt::Orbit::implementation
         FeedbackBar().Title(title);
         FeedbackBar().Message(message);
         FeedbackBar().Severity(severity);
+        
+        // Show "View log" button for successful operations
+        bool showLogButton = severity == InfoBarSeverity::Success &&
+            (title == L"Clean complete" || title == L"Recycle Bin emptied");
+        ViewLogButton().Visibility(
+            showLogButton ? Visibility::Visible : Visibility::Collapsed);
+        
         FeedbackBar().IsOpen(true);
     }
 
