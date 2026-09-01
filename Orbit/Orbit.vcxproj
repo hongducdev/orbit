@@ -132,10 +132,49 @@
     <ClInclude Include="Core\SizeCalculator.h" />
     <ClInclude Include="Core\OperationLog.h" />
     <ClInclude Include="Core\SystemMonitorContracts.h" />
+    <ClInclude Include="Helpers\AppSettings.h" />
+    <ClInclude Include="ViewModels\ViewModelBase.h" />
+    <ClInclude Include="Views\CleanPage.xaml.h">
+      <DependentUpon>CleanPage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="Views\AnalyzePage.xaml.h">
+      <DependentUpon>AnalyzePage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="Views\SoftwarePage.xaml.h">
+      <DependentUpon>SoftwarePage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="Views\OptimizePage.xaml.h">
+      <DependentUpon>OptimizePage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="Views\StatusPage.xaml.h">
+      <DependentUpon>StatusPage.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="Views\SettingsPage.xaml.h">
+      <DependentUpon>SettingsPage.xaml</DependentUpon>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
     <Page Include="MainWindow.xaml" />
+    <Page Include="Styles\DesignTokens.xaml" />
+    <Page Include="Views\CleanPage.xaml">
+      <DependentUpon>CleanPage.idl</DependentUpon>
+    </Page>
+    <Page Include="Views\AnalyzePage.xaml">
+      <DependentUpon>AnalyzePage.idl</DependentUpon>
+    </Page>
+    <Page Include="Views\SoftwarePage.xaml">
+      <DependentUpon>SoftwarePage.idl</DependentUpon>
+    </Page>
+    <Page Include="Views\OptimizePage.xaml">
+      <DependentUpon>OptimizePage.idl</DependentUpon>
+    </Page>
+    <Page Include="Views\StatusPage.xaml">
+      <DependentUpon>StatusPage.idl</DependentUpon>
+    </Page>
+    <Page Include="Views\SettingsPage.xaml">
+      <DependentUpon>SettingsPage.idl</DependentUpon>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -147,12 +186,48 @@
     <ClCompile Include="MainWindow.xaml.cpp">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClCompile>
+    <ClCompile Include="Views\CleanPage.xaml.cpp">
+      <DependentUpon>CleanPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="Views\AnalyzePage.xaml.cpp">
+      <DependentUpon>AnalyzePage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="Views\SoftwarePage.xaml.cpp">
+      <DependentUpon>SoftwarePage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="Views\OptimizePage.xaml.cpp">
+      <DependentUpon>OptimizePage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="Views\StatusPage.xaml.cpp">
+      <DependentUpon>StatusPage.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="Views\SettingsPage.xaml.cpp">
+      <DependentUpon>SettingsPage.xaml</DependentUpon>
+    </ClCompile>
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Midl Include="MainWindow.idl">
       <SubType>Code</SubType>
       <DependentUpon>MainWindow.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\CleanPage.idl">
+      <DependentUpon>CleanPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\AnalyzePage.idl">
+      <DependentUpon>AnalyzePage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\SoftwarePage.idl">
+      <DependentUpon>SoftwarePage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\OptimizePage.idl">
+      <DependentUpon>OptimizePage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\StatusPage.idl">
+      <DependentUpon>StatusPage.xaml</DependentUpon>
+    </Midl>
+    <Midl Include="Views\SettingsPage.idl">
+      <DependentUpon>SettingsPage.xaml</DependentUpon>
     </Midl>
   </ItemGroup>
   <ItemGroup>

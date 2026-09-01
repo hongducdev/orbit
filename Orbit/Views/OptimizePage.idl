@@ -1,0 +1,8 @@
+namespace Orbit
+{
+    [default_interface]
+    runtimeclass OptimizePage : Microsoft.UI.Xaml.Controls.Page
+    {
+        OptimizePage();
+    }
+}

@@ -1,0 +1,8 @@
+namespace Orbit
+{
+    [default_interface]
+    runtimeclass AnalyzePage : Microsoft.UI.Xaml.Controls.Page
+    {
+        AnalyzePage();
+    }
+}

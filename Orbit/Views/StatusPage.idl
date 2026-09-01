@@ -1,0 +1,8 @@
+namespace Orbit
+{
+    [default_interface]
+    runtimeclass StatusPage : Microsoft.UI.Xaml.Controls.Page
+    {
+        StatusPage();
+    }
+}

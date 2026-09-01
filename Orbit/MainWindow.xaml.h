@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "MainWindow.g.h"
 
 namespace winrt::Orbit::implementation
@@ -9,11 +8,20 @@ namespace winrt::Orbit::implementation
         MainWindow()
         {
             // Xaml objects should not call InitializeComponent during construction.
-            // See https://github.com/microsoft/cppwinrt/tree/master/nuget#initializecomponent
         }
 
-        int32_t MyProperty();
-        void MyProperty(int32_t value);
+        void NavView_Loaded(winrt::Windows::Foundation::IInspectable const& sender, winrt::Microsoft::UI::Xaml::RoutedEventArgs const& e);
+        void NavView_SelectionChanged(winrt::Microsoft::UI::Xaml::Controls::NavigationView const& sender, winrt::Microsoft::UI::Xaml::Controls::NavigationViewSelectionChangedEventArgs const& args);
+        void NavView_BackRequested(winrt::Microsoft::UI::Xaml::Controls::NavigationView const& sender, winrt::Microsoft::UI::Xaml::Controls::NavigationViewBackRequestedEventArgs const& args);
+        void Shortcut_Invoked(winrt::Microsoft::UI::Xaml::Input::KeyboardAccelerator const& sender, winrt::Microsoft::UI::Xaml::Input::KeyboardAcceleratorInvokedEventArgs const& args);
+        void ShortcutSettings_Invoked(winrt::Microsoft::UI::Xaml::Input::KeyboardAccelerator const& sender, winrt::Microsoft::UI::Xaml::Input::KeyboardAcceleratorInvokedEventArgs const& args);
+
+    private:
+        void NavigateTo(hstring const& tag);
+        void ApplyMicaBackdrop();
+        void ApplyThemeFromSettings();
+        void SelectInitialItem();
+        HWND GetWindowHandle();
     };
 }
 

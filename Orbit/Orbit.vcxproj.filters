@@ -10,20 +10,51 @@
     <Filter Include="Core">
       <UniqueIdentifier>{A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Styles">
+      <UniqueIdentifier>{B1C2D3E4-F5A6-47B8-C9D0-E1F2A3B4C5D6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Views">
+      <UniqueIdentifier>{C2D3E4F5-A6B7-48C9-D0E1-F2A3B4C5D6E7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Helpers">
+      <UniqueIdentifier>{D3E4F5A6-B7C8-49D0-E1F2-A3B4C5D6E7F8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ViewModels">
+      <UniqueIdentifier>{E4F5A6B7-C8D9-40E1-F2A3-B4C5D6E7F8A9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainWindow.xaml" />
+    <Page Include="Styles\DesignTokens.xaml"><Filter>Styles</Filter></Page>
+    <Page Include="Views\CleanPage.xaml"><Filter>Views</Filter></Page>
+    <Page Include="Views\AnalyzePage.xaml"><Filter>Views</Filter></Page>
+    <Page Include="Views\SoftwarePage.xaml"><Filter>Views</Filter></Page>
+    <Page Include="Views\OptimizePage.xaml"><Filter>Views</Filter></Page>
+    <Page Include="Views\StatusPage.xaml"><Filter>Views</Filter></Page>
+    <Page Include="Views\SettingsPage.xaml"><Filter>Views</Filter></Page>
   </ItemGroup>
   <ItemGroup>
     <Midl Include="MainWindow.idl" />
+    <Midl Include="Views\CleanPage.idl"><Filter>Views</Filter></Midl>
+    <Midl Include="Views\AnalyzePage.idl"><Filter>Views</Filter></Midl>
+    <Midl Include="Views\SoftwarePage.idl"><Filter>Views</Filter></Midl>
+    <Midl Include="Views\OptimizePage.idl"><Filter>Views</Filter></Midl>
+    <Midl Include="Views\StatusPage.idl"><Filter>Views</Filter></Midl>
+    <Midl Include="Views\SettingsPage.idl"><Filter>Views</Filter></Midl>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="App.xaml.cpp" />
     <ClCompile Include="MainWindow.xaml.cpp" />
+    <ClCompile Include="Views\CleanPage.xaml.cpp"><Filter>Views</Filter></ClCompile>
+    <ClCompile Include="Views\AnalyzePage.xaml.cpp"><Filter>Views</Filter></ClCompile>
+    <ClCompile Include="Views\SoftwarePage.xaml.cpp"><Filter>Views</Filter></ClCompile>
+    <ClCompile Include="Views\OptimizePage.xaml.cpp"><Filter>Views</Filter></ClCompile>
+    <ClCompile Include="Views\StatusPage.xaml.cpp"><Filter>Views</Filter></ClCompile>
+    <ClCompile Include="Views\SettingsPage.xaml.cpp"><Filter>Views</Filter></ClCompile>
     <ClCompile Include="$(GeneratedFilesDir)module.g.cpp">
       <Filter>Generated Files</Filter>
     </ClCompile>
@@ -37,6 +68,14 @@
     <ClInclude Include="Core\SizeCalculator.h"><Filter>Core</Filter></ClInclude>
     <ClInclude Include="Core\OperationLog.h"><Filter>Core</Filter></ClInclude>
     <ClInclude Include="Core\SystemMonitorContracts.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Helpers\AppSettings.h"><Filter>Helpers</Filter></ClInclude>
+    <ClInclude Include="ViewModels\ViewModelBase.h"><Filter>ViewModels</Filter></ClInclude>
+    <ClInclude Include="Views\CleanPage.xaml.h"><Filter>Views</Filter></ClInclude>
+    <ClInclude Include="Views\AnalyzePage.xaml.h"><Filter>Views</Filter></ClInclude>
+    <ClInclude Include="Views\SoftwarePage.xaml.h"><Filter>Views</Filter></ClInclude>
+    <ClInclude Include="Views\OptimizePage.xaml.h"><Filter>Views</Filter></ClInclude>
+    <ClInclude Include="Views\StatusPage.xaml.h"><Filter>Views</Filter></ClInclude>
+    <ClInclude Include="Views\SettingsPage.xaml.h"><Filter>Views</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\LockScreenLogo.scale-200.png"><Filter>Assets</Filter></Image>
