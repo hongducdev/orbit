@@ -1,74 +1,58 @@
 #pragma once
+#include <windows.h>
+#include <shlwapi.h>
+#include <pathcch.h>
 #include <string>
 #include <string_view>
 #include <vector>
 #include <algorithm>
-#include <shlwapi.h>
+#include <cwctype>
 
 namespace Orbit::Core
 {
 
 // ProtectionList — denylist for paths that must never be auto-deleted.
-// Mirrors Mole's conservative whitelist: Windows/system dirs, user profile
-// root without subpath, reparse/cloud placeholders handled via attributes
-// (not just path) in SizeCalculator. This file is path-only checks.
+// Drive-agnostic: derives system drive/users prefix at runtime, canonicalizes .. segments.
 class ProtectionList
 {
 public:
-    // Returns true if |path| is protected (must not delete without explicit user selection).
-    // |path| may be absolute or with \\?\ prefix; comparison is case-insensitive,
-    // normalized to backslashes, trailing slash trimmed except for drive root.
     static bool IsProtected(std::wstring_view path) noexcept
     {
         if (path.empty()) return true;
 
         std::wstring norm = Normalize(path);
-        std::wstring lower = ToLower(norm);
+        std::wstring canon = Canonicalize(norm);
+        std::wstring lower = ToLower(canon);
 
-        // Denied prefixes — subtree protected.
-        // Keep list small & auditable; OneDrive/WSL/network handled via reparse checks elsewhere.
-        static const std::wstring kDeniedPrefixes[] = {
-            L"c:\\windows",
-            L"c:\\windows\\system32",
-            L"c:\\windows\\winsxs",
-            L"c:\\windows\\systemapps",
-            L"c:\\windows\\servicing",
-            L"c:\\program files\\windowsapps",
-            L"c:\\system volume information",
-            L"c:\\$recycle.bin",
-            L"c:\\recovery",
+        // Build denied suffixes relative to any drive (e.g., \windows, \windows\system32).
+        // Check suffix after drive root X:\ or UNC \\server\share\.
+        std::wstring suffix = SuffixAfterRoot(lower);
+        // Denied suffixes — subtree protected.
+        static const std::wstring kDeniedSuffixes[] = {
+            L"\\windows",
+            L"\\windows\\system32",
+            L"\\windows\\winsxs",
+            L"\\windows\\systemapps",
+            L"\\windows\\servicing",
+            L"\\program files\\windowsapps",
+            L"\\system volume information",
+            L"\\$recycle.bin",
+            L"\\recovery",
         };
-
-        for (auto const& p : kDeniedPrefixes)
+        for (auto const& s : kDeniedSuffixes)
         {
-            if (IsPrefixOrEqual(lower, p))
+            if (IsPrefixOrEqual(suffix, s))
                 return true;
         }
 
-        // User profile root without subpath is protected (e.g., C:\Users\alice).
-        // Allow subpaths like C:\Users\alice\AppData\Local\Temp\...
-        // Detect pattern C:\Users\<name> with no further separator.
         if (IsUserProfileRoot(lower))
             return true;
-
-        // Documents / Pictures / Desktop / Downloads roots — never auto-select.
-        // They are protected from bulk delete; explicit per-file selection still requires UI confirm.
-        static const std::wstring kUserDataRoots[] = {
-            L"\\documents",
-            L"\\pictures",
-            L"\\desktop",
-            L"\\downloads",
-        };
-        // Check if path equals or is inside those folders under the profile.
-        // We already know profile root; expand check for any user.
         if (IsInsideUserDataRoot(lower))
             return true;
 
         return false;
     }
 
-    // Lightweight check for reparse/cloud placeholder by attributes — caller passes
-    // GetFileAttributesEx result. Separated so ProtectionList stays path-only testable.
     static bool IsReparseProtected(DWORD attrs) noexcept
     {
         return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
@@ -83,16 +67,64 @@ private:
     static std::wstring Normalize(std::wstring_view sv)
     {
         std::wstring s(sv);
-        // Strip \\?\ prefix for comparison.
-        const std::wstring prefix = L"\\\\?\\";
-        if (s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0)
-            s = s.substr(prefix.size());
-        // Normalize slashes to backslash.
+        // Handle \\?\ and \\?\UNC\ prefixes per H4
+        const std::wstring longPrefix = L"\\\\?\\";
+        const std::wstring uncPrefix = L"\\\\?\\UNC\\";
+        if (s.size() >= uncPrefix.size() && s.compare(0, uncPrefix.size(), uncPrefix) == 0)
+        {
+            // \\?\UNC\server\share\path -> \\server\share\path
+            s = L"\\\\" + s.substr(uncPrefix.size());
+        }
+        else if (s.size() >= longPrefix.size() && s.compare(0, longPrefix.size(), longPrefix) == 0)
+        {
+            s = s.substr(longPrefix.size());
+        }
+        // \\.\ is device namespace; strip similarly
+        const std::wstring devPrefix = L"\\\\.\\";
+        if (s.size() >= devPrefix.size() && s.compare(0, devPrefix.size(), devPrefix) == 0)
+            s = s.substr(devPrefix.size());
+
         std::replace(s.begin(), s.end(), L'/', L'\\');
-        // Trim trailing backslashes except for "C:\"
-        while (s.size() > 3 && (s.back() == L'\\'))
+        while (s.size() > 3 && s.back() == L'\\')
             s.pop_back();
         return s;
+    }
+
+    static std::wstring Canonicalize(const std::wstring& s)
+    {
+        wchar_t canon[MAX_PATH * 2]{};
+        HRESULT hr = ::PathCchCanonicalizeEx(canon, MAX_PATH * 2, s.c_str(), PATHCCH_ALLOW_LONG_PATHS);
+        if (SUCCEEDED(hr))
+            return std::wstring(canon);
+        // fallback: GetFullPathNameW handles .. segments for non-long paths
+        wchar_t full[MAX_PATH * 2]{};
+        DWORD len = ::GetFullPathNameW(s.c_str(), MAX_PATH * 2, full, nullptr);
+        if (len > 0 && len < MAX_PATH * 2)
+            return std::wstring(full);
+        return s;
+    }
+
+    // Returns suffix after drive root or UNC share, e.g., C:\Windows\System32 -> \windows\system32
+    // UNC \\server\share\foo -> \foo ; if no root, returns lower itself
+    static std::wstring SuffixAfterRoot(const std::wstring& lower) noexcept
+    {
+        if (lower.size() >= 2 && lower[1] == L':')
+        {
+            // Drive-rooted: X:\...
+            if (lower.size() >= 3 && lower[2] == L'\\')
+                return lower.substr(2); // includes leading \
+            return lower.substr(2);
+        }
+        if (lower.rfind(L"\\\\", 0) == 0)
+        {
+            // UNC: \\server\share\rest
+            size_t second = lower.find(L'\\', 2);
+            if (second == std::wstring::npos) return L"";
+            size_t third = lower.find(L'\\', second + 1);
+            if (third == std::wstring::npos) return L"";
+            return lower.substr(third);
+        }
+        return lower;
     }
 
     static std::wstring ToLower(std::wstring s)
@@ -109,24 +141,23 @@ private:
         return path[prefix.size()] == L'\\';
     }
 
+    // Drive-agnostic: matches X:\Users\<name>
     static bool IsUserProfileRoot(const std::wstring& lower) noexcept
     {
-        const std::wstring usersPrefix = L"c:\\users\\";
-        if (lower.rfind(usersPrefix, 0) != 0) return false;
-        std::wstring rest = lower.substr(usersPrefix.size());
-        // No further backslash => exactly C:\Users\<name>
+        // Find drive or UNC root then check \users\ segment
+        size_t usersPos = lower.find(L"\\users\\");
+        if (usersPos == std::wstring::npos) return false;
+        std::wstring rest = lower.substr(usersPos + 7); // after \users\
         return rest.find(L'\\') == std::wstring::npos && !rest.empty();
     }
 
     static bool IsInsideUserDataRoot(const std::wstring& lower) noexcept
     {
-        // Find \users\<name>\ pattern, then check suffix
-        const std::wstring usersPrefix = L"c:\\users\\";
-        if (lower.rfind(usersPrefix, 0) != 0) return false;
-        // Extract after C:\Users\<name>\
-        size_t nameEnd = lower.find(L'\\', usersPrefix.size());
-        if (nameEnd == std::wstring::npos) return false; // profile root itself handled above
-        std::wstring suffix = lower.substr(nameEnd); // e.g., \documents or \documents\foo
+        size_t usersPos = lower.find(L"\\users\\");
+        if (usersPos == std::wstring::npos) return false;
+        size_t nameEnd = lower.find(L'\\', usersPos + 7);
+        if (nameEnd == std::wstring::npos) return false;
+        std::wstring suffix = lower.substr(nameEnd);
         static const std::wstring kRoots[] = { L"\\documents", L"\\pictures", L"\\desktop", L"\\downloads" };
         for (auto const& r : kRoots)
         {

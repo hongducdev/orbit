@@ -24,30 +24,26 @@ struct FileIdentityHash
 {
     size_t operator()(const FileIdentity& k) const noexcept
     {
-        // Simple combine
         size_t h = static_cast<size_t>(k.volumeSerial) * 31u + k.fileIndexHigh;
         h = h * 31u + k.fileIndexLow;
         return h;
     }
 };
 
-// SizeCalculator — hardlink-aware sizing.
-// Uses GetFileInformationByHandle VolumeSerial + FileIndex to deduplicate hardlinks.
-// Handles reparse points (never follows directory junctions), OneDrive cloud placeholders
-// (RecallOnDataAccess => 0 bytes), and compressed/sparse files via GetCompressedFileSizeW.
+// SizeCalculator — hardlink-aware sizing. Hardlink dedup only for nNumberOfLinks>1 to bound memory.
 class SizeCalculator
 {
 public:
-    SizeCalculator() = default;
+    static constexpr int kMaxDepth = 256;
 
-    // Returns size of a single file (hardlink-deduped). Returns 0 on error or if
-    // the file is a cloud placeholder / reparse that should not be counted.
-    // Updates |seen| to track hardlink identity across a scan.
     static uint64_t FileSizeHardlinkAware(std::wstring_view path, std::unordered_set<FileIdentity, FileIdentityHash>& seen) noexcept
     {
-        // Open with no access, do not follow reparse points.
+        std::wstring wpath(path);
+        // Long-path support: prefix \\?\ if needed and not already present
+        std::wstring probePath = EnsureLongPath(wpath);
+
         HANDLE h = ::CreateFileW(
-            std::wstring(path).c_str(),
+            probePath.c_str(),
             0,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             nullptr,
@@ -59,34 +55,27 @@ public:
 
         BY_HANDLE_FILE_INFORMATION info{};
         BOOL ok = ::GetFileInformationByHandle(h, &info);
-        DWORD attrs = info.dwFileAttributes;
-        // Also query attributes for reparse/recall detection if GetFileInformation failed partially
         if (!ok)
         {
             ::CloseHandle(h);
             return 0;
         }
-
-        // OneDrive cloud placeholder: do not count (offline, not on disk)
+        DWORD attrs = info.dwFileAttributes;
         if ((attrs & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0)
         {
             ::CloseHandle(h);
             return 0;
         }
-
-        // Reparse points: size the link itself (which is tiny), but do not follow directory junctions.
-        // For files we already have identity; for directory reparse we return 0 to avoid recursion loops
-        // (caller directory walker will skip reparse dirs).
         if ((attrs & FILE_ATTRIBUTE_REPARSE_POINT) != 0 && (attrs & FILE_ATTRIBUTE_DIRECTORY) != 0)
         {
             ::CloseHandle(h);
             return 0;
         }
 
-        FileIdentity id{ info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow };
-        // Deduplicate hardlinks: only count first occurrence.
+        // Only track hardlinks — bound seen set (H1 fix)
         if (info.nNumberOfLinks > 1)
         {
+            FileIdentity id{ info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow };
             if (seen.find(id) != seen.end())
             {
                 ::CloseHandle(h);
@@ -94,54 +83,46 @@ public:
             }
             seen.insert(id);
         }
-        else
-        {
-            // Still insert to handle edge where nNumberOfLinks==1 but same file visited via another path
-            // (rare). Insert anyway for consistency.
-            seen.insert(id);
-        }
 
-        // Prefer GetCompressedFileSizeW for sparse/CompactOS awareness; fallback to info size.
-        // Need path for GetCompressedFileSizeW; use original path.
         DWORD high = 0;
-        DWORD low = ::GetCompressedFileSizeW(std::wstring(path).c_str(), &high);
+        DWORD low = ::GetCompressedFileSizeW(probePath.c_str(), &high);
+        DWORD err = ::GetLastError(); // cache once (H3 fix)
         uint64_t size = 0;
-        if (low != INVALID_FILE_SIZE || ::GetLastError() == NO_ERROR)
-        {
-            // GetCompressedFileSize returns INVALID_FILE_SIZE on failure; check error
-            if (low == INVALID_FILE_SIZE && ::GetLastError() != NO_ERROR)
-            {
-                size = (static_cast<uint64_t>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
-            }
-            else
-            {
-                size = (static_cast<uint64_t>(high) << 32) | low;
-            }
-        }
-        else
+        if (low == INVALID_FILE_SIZE && err != NO_ERROR)
         {
             size = (static_cast<uint64_t>(info.nFileSizeHigh) << 32) | info.nFileSizeLow;
+        }
+        else if (low == INVALID_FILE_SIZE && err == NO_ERROR)
+        {
+            // File is exactly 0xFFFFFFFF bytes compressed — valid, size is high:low
+            size = (static_cast<uint64_t>(high) << 32) | low;
+        }
+        else
+        {
+            // low != INVALID_FILE_SIZE -> high is valid
+            size = (static_cast<uint64_t>(high) << 32) | low;
         }
 
         ::CloseHandle(h);
         return size;
     }
 
-    // Convenience overload without external seen set (single file, no cross-file dedup).
     static uint64_t FileSizeHardlinkAware(std::wstring_view path) noexcept
     {
         std::unordered_set<FileIdentity, FileIdentityHash> seen;
         return FileSizeHardlinkAware(path, seen);
     }
 
-    // Directory size via FindFirstFileExW iteration; skips reparse dirs and protected system dirs.
-    // Caller should check ProtectionList::IsProtected(root) before calling.
-    static uint64_t DirectorySize(std::wstring_view root, std::unordered_set<FileIdentity, FileIdentityHash>& seen) noexcept
+    static uint64_t DirectorySize(std::wstring_view root, std::unordered_set<FileIdentity, FileIdentityHash>& seen, int depth = 0) noexcept
     {
-        std::wstring pattern = std::wstring(root);
+        if (depth > kMaxDepth) return 0; // H5: bound recursion
+
+        std::wstring wroot(root);
+        std::wstring pattern = wroot;
         if (!pattern.empty() && pattern.back() != L'\\' && pattern.back() != L'/')
             pattern += L"\\";
         pattern += L"*";
+        pattern = EnsureLongPath(pattern);
 
         WIN32_FIND_DATAW fd{};
         HANDLE hFind = ::FindFirstFileExW(
@@ -160,32 +141,25 @@ public:
             std::wstring name = fd.cFileName;
             if (name == L"." || name == L"..")
                 continue;
-
-            // Skip System Volume Information and $Recycle.Bin at any depth
             if (_wcsicmp(name.c_str(), L"System Volume Information") == 0 ||
                 _wcsicmp(name.c_str(), L"$Recycle.Bin") == 0)
                 continue;
-
-            // Skip reparse directories (junctions, OneDrive, WSL) to avoid loops
             if ((fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
             {
-                // Cloud placeholder files: count as 0, skip
                 if ((fd.dwFileAttributes & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0)
                     continue;
-                // Directory reparse: skip traversal
                 if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
                     continue;
-                // File reparse: count link itself via handle path (rare)
             }
 
-            std::wstring full = std::wstring(root);
+            std::wstring full = wroot;
             if (!full.empty() && full.back() != L'\\' && full.back() != L'/')
                 full += L"\\";
             full += name;
 
             if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
             {
-                total += DirectorySize(full, seen);
+                total += DirectorySize(full, seen, depth + 1);
             }
             else
             {
@@ -199,7 +173,21 @@ public:
     static uint64_t DirectorySize(std::wstring_view root) noexcept
     {
         std::unordered_set<FileIdentity, FileIdentityHash> seen;
-        return DirectorySize(root, seen);
+        return DirectorySize(root, seen, 0);
+    }
+
+private:
+    static std::wstring EnsureLongPath(const std::wstring& s)
+    {
+        if (s.rfind(L"\\\\?\\", 0) == 0 || s.rfind(L"\\\\.\\", 0) == 0)
+            return s;
+        if (s.size() >= 260)
+        {
+            if (s.rfind(L"\\\\", 0) == 0)
+                return L"\\\\?\\UNC\\" + s.substr(2);
+            return L"\\\\?\\" + s;
+        }
+        return s;
     }
 };
 

@@ -1,4 +1,6 @@
 #pragma once
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <unknwn.h>
 #include <restrictederrorinfo.h>
@@ -35,3 +37,5 @@
 #include <shlobj.h>
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
+#include <pathcch.h>
+#pragma comment(lib, "pathcch.lib")

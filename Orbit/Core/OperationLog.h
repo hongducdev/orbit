@@ -1,11 +1,13 @@
 #pragma once
+#include <windows.h>
+#include <stringapiset.h>
+#include <shlobj.h>
 #include <string>
 #include <vector>
 #include <chrono>
 #include <fstream>
 #include <filesystem>
-#include <shlobj.h>
-#include <winrt/Windows.Storage.h>
+#include <mutex>
 
 namespace Orbit::Core
 {
@@ -16,23 +18,22 @@ enum class Destination : uint8_t { Recycle, Permanent };
 
 struct OperationLogEntry
 {
-    std::wstring timestampIso8601; // e.g., 2026-09-01T09:00:00Z
+    std::wstring timestampIso8601;
     OperationKind op{ OperationKind::Clean };
-    std::wstring category; // e.g., "TempUser" or "WinUpdateCache"
+    std::wstring category;
     std::vector<std::wstring> paths;
     uint64_t bytesBefore{0};
     uint64_t bytesAfter{0};
     Destination dest{ Destination::Recycle };
     bool dryRun{false};
     OperationOutcome outcome{ OperationOutcome::Success };
-    std::wstring error; // empty on success
+    std::wstring error;
 
-    // Minimal JSON serialization (no external dep). Paths etc. are escaped for quotes/backslashes.
     std::wstring ToJson() const
     {
         auto escape = [](const std::wstring& s) -> std::wstring {
             std::wstring out;
-            out.reserve(s.size() + 4);
+            out.reserve(s.size() + 8);
             for (wchar_t c : s)
             {
                 if (c == L'"') out += L"\\\"";
@@ -40,6 +41,14 @@ struct OperationLogEntry
                 else if (c == L'\n') out += L"\\n";
                 else if (c == L'\r') out += L"\\r";
                 else if (c == L'\t') out += L"\\t";
+                else if (c == L'\b') out += L"\\b";
+                else if (c == L'\f') out += L"\\f";
+                else if (c < 0x20)
+                {
+                    wchar_t buf[7];
+                    swprintf_s(buf, L"\\u%04x", static_cast<int>(c));
+                    out += buf;
+                }
                 else out += c;
             }
             return out;
@@ -75,17 +84,11 @@ struct OperationLogEntry
     }
 };
 
-// OperationLog — append-only JSONL file.
-// Location: packaged => ApplicationData.Current.LocalFolder/Orbit/history.jsonl
-//           unpackaged => %LOCALAPPDATA%\Orbit\history.jsonl
 class OperationLog
 {
 public:
     static std::filesystem::path LogFilePath() noexcept
     {
-        // Try packaged location first; fallback to LocalAppData\Orbit
-        // We do not use winrt::ApplicationData here to keep header-only and avoid
-        // requiring apartment init in non-UI contexts. Use SHGetKnownFolderPath.
         PWSTR psz = nullptr;
         std::filesystem::path base;
         if (SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &psz)) && psz)
@@ -103,33 +106,26 @@ public:
         return base / L"history.jsonl";
     }
 
-    // Append entry as single JSON line. Returns false on I/O failure.
     static bool Append(const OperationLogEntry& entry) noexcept
     {
         try
         {
             auto path = LogFilePath();
-            std::wofstream out(path, std::ios::app);
-            if (!out) return false;
-            // Ensure UTF-8? wofstream writes UTF-16 with BOM on Windows; for JSONL we write wide then
-            // consumer must handle. For mo-parity, write UTF-8 via narrow conversion would be better,
-            // but keep simple for v1 header-only. Write as UTF-8 narrow via conversion.
-            // Convert wstring json to narrow UTF-8 (assume ASCII paths for now; non-ASCII escaped would need proper conversion).
             std::wstring wjson = entry.ToJson();
-            // Quick narrow: if all chars < 0x80, direct; else replace with ?
-            std::string narrow;
-            narrow.reserve(wjson.size());
-            for (wchar_t c : wjson)
-            {
-                if (c < 0x80) narrow.push_back(static_cast<char>(c));
-                else narrow.push_back('?');
-            }
-            // Reopen as narrow append
-            out.close();
-            std::ofstream nout(path, std::ios::app | std::ios::binary);
-            if (!nout) return false;
-            nout << narrow << "\n";
-            return true;
+            // Proper UTF-8 via WideCharToMultiByte (handles Japanese, emoji, etc.)
+            int needed = ::WideCharToMultiByte(CP_UTF8, 0, wjson.c_str(), -1, nullptr, 0, nullptr, nullptr);
+            if (needed <= 0) return false;
+            std::string narrow(static_cast<size_t>(needed - 1), '\0');
+            ::WideCharToMultiByte(CP_UTF8, 0, wjson.c_str(), -1, narrow.data(), needed, nullptr, nullptr);
+
+            static std::mutex s_mutex;
+            std::lock_guard<std::mutex> lock(s_mutex);
+            std::ofstream out(path, std::ios::app | std::ios::binary);
+            if (!out) return false;
+            out.write(narrow.c_str(), static_cast<std::streamsize>(narrow.size()));
+            out.put('\n');
+            out.flush();
+            return out.good();
         }
         catch (...)
         {
@@ -137,7 +133,6 @@ public:
         }
     }
 
-    // Helper to produce ISO8601 UTC now.
     static std::wstring NowIso8601() noexcept
     {
         using namespace std::chrono;
