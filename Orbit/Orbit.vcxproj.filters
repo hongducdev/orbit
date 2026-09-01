@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{0EC16F89-E83C-4EFA-9D87-D18D0D7D2B55}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{D9D449D9-5C4C-4E9C-8E3A-0C8E2F9A1B11}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{A1B2C3D4-E5F6-47A8-B9C0-D1E2F3A4B5C6}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="MainWindow.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="MainWindow.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="App.xaml.cpp" />
+    <ClCompile Include="MainWindow.xaml.cpp" />
+    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="App.xaml.h" />
+    <ClInclude Include="MainWindow.xaml.h" />
+    <ClInclude Include="Core\CleanCategoryRegistry.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\ProtectionList.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\SizeCalculator.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\OperationLog.h"><Filter>Core</Filter></ClInclude>
+    <ClInclude Include="Core\SystemMonitorContracts.h"><Filter>Core</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\LockScreenLogo.scale-200.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\SplashScreen.scale-200.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\Square150x150Logo.scale-200.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\Square44x44Logo.scale-200.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\Square44x44Logo.targetsize-48_altform-lightunplated.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\StoreLogo.png"><Filter>Assets</Filter></Image>
+    <Image Include="Assets\Wide310x150Logo.scale-200.png"><Filter>Assets</Filter></Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="readme.txt" />
+    <None Include="packages.config" />
+    <AppxManifest Include="Package.appxmanifest" />
+    <Manifest Include="app.manifest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,54 @@
+# Orbit — WinUI 3 / C++/WinRT
+# Only main source (Orbit/) is tracked; exclude internal tooling and docs per user request
+
+# ——— Explicitly excluded per request ———
+.claude/
+.opencode/
+docs/
+plans/
+
+# ——— Visual Studio / MSBuild ———
+.vs/
+x64/
+Debug/
+Release/
+*.user
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+ipch/
+Generated Files/
+# Keep project sources but ignore build outputs
+Orbit/x64/
+Orbit/Debug/
+Orbit/Release/
+Orbit/Generated Files/
+
+# ——— NuGet (packages restored via nuget restore; keep packages.config but ignore binaries) ———
+# Uncomment next line if you prefer restore-on-build (recommended for CI)
+# packages/
+# Always ignore NuGet cache inside repo
+*.nupkg
+
+# ——— MSIX packaging ———
+AppPackages/
+BundleArtifacts/
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+
+# ——— OS ———
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+.DS_Store
+
+# ——— Logs ———
+*.log
+
+# ——— Optional local overrides ———
+.local/
