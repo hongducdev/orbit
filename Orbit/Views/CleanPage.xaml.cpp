@@ -255,16 +255,26 @@ namespace winrt::Orbit::implementation
         UpdateControls();
 
         // Start timer to update progress during deletion
-        auto dispatcherQueue = DispatcherQueue::GetForCurrentThread();
-        auto timer = dispatcherQueue.CreateTimer();
+        auto timer = DispatcherQueue().CreateTimer();
         timer.Interval(std::chrono::milliseconds(100));
         timer.IsRepeating(true);
-        timer.Tick([this](auto&&, auto&&) {
-            UpdateControls();
+        timer.Tick([weakThis = get_weak()](auto&&, auto&&) {
+            if (auto strongThis = weakThis.get())
+            {
+                strongThis->UpdateControls();
+            }
         });
         timer.Start();
 
-        co_await operation;
+        try
+        {
+            co_await operation;
+        }
+        catch (...)
+        {
+            timer.Stop();
+            throw;
+        }
 
         timer.Stop();
         RenderResults();
@@ -337,16 +347,26 @@ namespace winrt::Orbit::implementation
         UpdateControls();
 
         // Start timer to update progress during emptying
-        auto dispatcherQueue = DispatcherQueue::GetForCurrentThread();
-        auto timer = dispatcherQueue.CreateTimer();
+        auto timer = DispatcherQueue().CreateTimer();
         timer.Interval(std::chrono::milliseconds(100));
         timer.IsRepeating(true);
-        timer.Tick([this](auto&&, auto&&) {
-            UpdateControls();
+        timer.Tick([weakThis = get_weak()](auto&&, auto&&) {
+            if (auto strongThis = weakThis.get())
+            {
+                strongThis->UpdateControls();
+            }
         });
         timer.Start();
 
-        co_await operation;
+        try
+        {
+            co_await operation;
+        }
+        catch (...)
+        {
+            timer.Stop();
+            throw;
+        }
 
         timer.Stop();
         RenderResults();
