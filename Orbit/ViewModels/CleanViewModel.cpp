@@ -252,13 +252,22 @@ namespace Orbit::ViewModels
             co_return;
         }
 
+        cleanTotal.store(static_cast<uint32_t>(filesystemPaths.size()));
+        cleanCompleted.store(0);
+
         winrt::apartment_context uiThread;
         co_await winrt::resume_background();
 
         Platform::ShellOperations::DeleteResult result;
         try
         {
-            result = Platform::ShellOperations::DeleteFiles(filesystemPaths, permanent);
+            result = Platform::ShellOperations::DeleteFiles(
+                filesystemPaths,
+                permanent,
+                [this](uint32_t completed, uint32_t total) {
+                    cleanCompleted.store(completed);
+                    cleanTotal.store(total);
+                });
         }
         catch (...)
         {
@@ -300,6 +309,8 @@ namespace Orbit::ViewModels
         co_await uiThread;
         lastOperationLogged = operationLogged;
         lastDeleteResult = result;
+        cleanCompleted.store(0);
+        cleanTotal.store(0);
         if (!result.completedPaths.empty())
         {
             RemoveDeletedFiles(result.completedPaths);
@@ -329,6 +340,10 @@ namespace Orbit::ViewModels
             lastDeleteResult = { false, E_PENDING, 0, 0, L"Another operation is active" };
             co_return;
         }
+
+        cleanTotal.store(0);
+        cleanCompleted.store(0);
+        scanStatus = L"Emptying Recycle Bin…";
 
         uint64_t bytesBefore = 0;
         for (auto const& category : categories)
@@ -374,6 +389,8 @@ namespace Orbit::ViewModels
         co_await uiThread;
         lastOperationLogged = operationLogged;
         lastDeleteResult = result;
+        cleanCompleted.store(0);
+        cleanTotal.store(0);
         if (result.succeeded)
         {
             for (auto& category : categories)

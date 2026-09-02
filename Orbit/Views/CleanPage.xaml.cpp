@@ -253,7 +253,20 @@ namespace winrt::Orbit::implementation
 
         auto operation = m_viewModel->DeleteSelectedAsync(permanent);
         UpdateControls();
+
+        // Start timer to update progress during deletion
+        auto dispatcherQueue = DispatcherQueue::GetForCurrentThread();
+        auto timer = dispatcherQueue.CreateTimer();
+        timer.Interval(std::chrono::milliseconds(100));
+        timer.IsRepeating(true);
+        timer.Tick([this](auto&&, auto&&) {
+            UpdateControls();
+        });
+        timer.Start();
+
         co_await operation;
+
+        timer.Stop();
         RenderResults();
         UpdateControls();
 
@@ -322,7 +335,20 @@ namespace winrt::Orbit::implementation
 
         auto operation = m_viewModel->EmptyRecycleBinAsync();
         UpdateControls();
+
+        // Start timer to update progress during emptying
+        auto dispatcherQueue = DispatcherQueue::GetForCurrentThread();
+        auto timer = dispatcherQueue.CreateTimer();
+        timer.Interval(std::chrono::milliseconds(100));
+        timer.IsRepeating(true);
+        timer.Tick([this](auto&&, auto&&) {
+            UpdateControls();
+        });
+        timer.Start();
+
         co_await operation;
+
+        timer.Stop();
         RenderResults();
         UpdateControls();
 
@@ -406,7 +432,28 @@ namespace winrt::Orbit::implementation
         ScanButton().IsEnabled(!busy);
         CancelButton().Visibility(scanning ? Visibility::Visible : Visibility::Collapsed);
         CancelButton().IsEnabled(scanning && !m_viewModel->cancelRequested.load());
-        ScanProgress().Visibility(scanning ? Visibility::Visible : Visibility::Collapsed);
+        ScanProgress().Visibility((scanning || deleting) ? Visibility::Visible : Visibility::Collapsed);
+
+        if (deleting)
+        {
+            uint32_t completed = m_viewModel->cleanCompleted.load();
+            uint32_t total = m_viewModel->cleanTotal.load();
+            if (total > 0)
+            {
+                ScanProgress().IsIndeterminate(false);
+                ScanProgress().Maximum(total);
+                ScanProgress().Value(completed);
+            }
+            else
+            {
+                ScanProgress().IsIndeterminate(true);
+            }
+        }
+        else if (scanning)
+        {
+            ScanProgress().IsIndeterminate(true);
+        }
+
         SearchBox().IsEnabled(!busy);
         RiskyToggle().IsEnabled(!busy);
         WhitelistButton().IsEnabled(!busy);
@@ -420,7 +467,30 @@ namespace winrt::Orbit::implementation
             m_viewModel->selectedFiles,
             m_viewModel->SelectedFormatted().c_str());
         SelectionSummary().Text(selection);
-        ScanStatusText().Text(hstring(m_viewModel->scanStatus));
+
+        if (deleting)
+        {
+            uint32_t completed = m_viewModel->cleanCompleted.load();
+            uint32_t total = m_viewModel->cleanTotal.load();
+            if (total > 0)
+            {
+                wchar_t status[256]{};
+                swprintf_s(
+                    status,
+                    permanent ? L"Permanently deleting %u of %u items…" : L"Moving %u of %u items to Recycle Bin…",
+                    completed,
+                    total);
+                ScanStatusText().Text(status);
+            }
+            else
+            {
+                ScanStatusText().Text(hstring(m_viewModel->scanStatus));
+            }
+        }
+        else
+        {
+            ScanStatusText().Text(hstring(m_viewModel->scanStatus));
+        }
         
         // Enable Empty Recycle Bin button if not busy and Recycle Bin has items
         // Check directly via ShellOperations if not scanned yet, or via category data if scanned
