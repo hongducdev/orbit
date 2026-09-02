@@ -231,17 +231,17 @@ public:
                             outSkipped.push_back({ full, L"Protected (whitelisted)" });
                             continue;
                         }
+                        if (out.size() >= options.maxEntriesPerCategory)
+                        {
+                            if (firstHiddenPath.empty()) firstHiddenPath = full;
+                            ::FindClose(hFind);
+                            stack.clear();
+                            goto scan_complete_for_root;
+                        }
                         uint64_t fallbackSize =
                             (static_cast<uint64_t>(fd.nFileSizeHigh) << 32) |
                             fd.nFileSizeLow;
                         auto measured = SizeCalculator::MeasureFile(full, seen, fallbackSize);
-                        if (out.size() >= options.maxEntriesPerCategory)
-                        {
-                            if (firstHiddenPath.empty()) firstHiddenPath = full;
-                            ++outHiddenCount;
-                            outHiddenBytes += measured.size;
-                            continue;
-                        }
 
                         ScannedFile file;
                         file.path = full;
@@ -257,8 +257,9 @@ public:
                 } while (::FindNextFileW(hFind, &fd));
                 ::FindClose(hFind);
             }
+scan_complete_for_root:;
         }
-        if (outHiddenCount > 0)
+        if (outHiddenCount > 0 || !firstHiddenPath.empty())
         {
             outSkipped.push_back({
                 firstHiddenPath,

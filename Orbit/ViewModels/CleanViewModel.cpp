@@ -94,6 +94,8 @@ namespace Orbit::ViewModels
             {
                 if (cancelRequested.load()) break;
 
+                scanStatus = L"Scanning " + category.displayName + L"…";
+
                 if (category.id == Core::CleanCategoryId::RecycleBin)
                 {
                     category.totalBytes = Platform::ShellOperations::GetRecycleBinSizeBytes();
@@ -190,7 +192,15 @@ namespace Orbit::ViewModels
             scanError = L"Unexpected scanner failure";
         }
 
-        co_await uiThread;
+        try
+        {
+            co_await uiThread;
+        }
+        catch (...)
+        {
+            isScanning.store(false);
+            throw;
+        }
         isScanning.store(false);
         if (!scanError.empty())
         {
