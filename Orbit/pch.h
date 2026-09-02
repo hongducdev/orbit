@@ -23,6 +23,10 @@
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Xaml.Navigation.h>
 #include <winrt/Microsoft.UI.Xaml.Shapes.h>
+#include <winrt/Microsoft.UI.Xaml.Automation.h>
+#include <winrt/Microsoft.UI.Xaml.Automation.Peers.h>
+#include <winrt/Windows.UI.Text.h>
+#include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.ApplicationModel.h>
@@ -40,6 +44,10 @@
 #include <wbemidl.h>
 #pragma comment(lib, "wbemuuid.lib")
 #include <shlobj.h>
+#include <shobjidl.h>
+#include <shellapi.h>
+#pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "ole32.lib")
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 #include <pathcch.h>

@@ -15,7 +15,7 @@
             <KeyboardAccelerator Key="Number3" Modifiers="Control" Invoked="Shortcut_Invoked" />
             <KeyboardAccelerator Key="Number4" Modifiers="Control" Invoked="Shortcut_Invoked" />
             <KeyboardAccelerator Key="Number5" Modifiers="Control" Invoked="Shortcut_Invoked" />
-            <KeyboardAccelerator Key="Comma" Modifiers="Control" Invoked="ShortcutSettings_Invoked" />
+            <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="ShortcutSettings_Invoked" />
         </Grid.KeyboardAccelerators>
         <NavigationView
             x:Name="NavView"

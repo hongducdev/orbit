@@ -29,7 +29,6 @@ public:
         std::wstring suffix = SuffixAfterRoot(lower);
         // Denied suffixes — subtree protected.
         static const std::wstring kDeniedSuffixes[] = {
-            L"\\windows",
             L"\\windows\\system32",
             L"\\windows\\winsxs",
             L"\\windows\\systemapps",
@@ -108,11 +107,23 @@ private:
     // UNC \\server\share\foo -> \foo ; if no root, returns lower itself
     static std::wstring SuffixAfterRoot(const std::wstring& lower) noexcept
     {
+        // A \\?\Volume{GUID}\ path loses its namespace prefix during normalization.
+        // Treat the portion after the volume identifier as the drive-relative suffix.
+        size_t volumePos = lower.find(L"volume{");
+        if (volumePos != std::wstring::npos)
+        {
+            size_t volumeEnd = lower.find(L"}\\", volumePos);
+            if (volumeEnd != std::wstring::npos)
+            {
+                return lower.substr(volumeEnd + 1);
+            }
+        }
+
         if (lower.size() >= 2 && lower[1] == L':')
         {
             // Drive-rooted: X:\...
             if (lower.size() >= 3 && lower[2] == L'\\')
-                return lower.substr(2); // includes leading \
+                return lower.substr(2); // includes the leading separator
             return lower.substr(2);
         }
         if (lower.rfind(L"\\\\", 0) == 0)
@@ -147,7 +158,7 @@ private:
         // Find drive or UNC root then check \users\ segment
         size_t usersPos = lower.find(L"\\users\\");
         if (usersPos == std::wstring::npos) return false;
-        std::wstring rest = lower.substr(usersPos + 7); // after \users\
+        std::wstring rest = lower.substr(usersPos + 7); // after the user segment
         return rest.find(L'\\') == std::wstring::npos && !rest.empty();
     }
 

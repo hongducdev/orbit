@@ -112,12 +112,18 @@ public:
         {
             auto path = LogFilePath();
             std::wstring wjson = entry.ToJson();
-            // Proper UTF-8 via WideCharToMultiByte (handles Japanese, emoji, etc.)
-            int needed = ::WideCharToMultiByte(CP_UTF8, 0, wjson.c_str(), -1, nullptr, 0, nullptr, nullptr);
+            int needed = ::WideCharToMultiByte(
+                CP_UTF8, WC_ERR_INVALID_CHARS, wjson.data(),
+                static_cast<int>(wjson.size()), nullptr, 0, nullptr, nullptr);
             if (needed <= 0) return false;
-            std::string narrow(static_cast<size_t>(needed - 1), '\0');
-            ::WideCharToMultiByte(CP_UTF8, 0, wjson.c_str(), -1, narrow.data(), needed, nullptr, nullptr);
-
+            std::string narrow(static_cast<size_t>(needed), '\0');
+            if (::WideCharToMultiByte(
+                    CP_UTF8, WC_ERR_INVALID_CHARS, wjson.data(),
+                    static_cast<int>(wjson.size()), narrow.data(), needed,
+                    nullptr, nullptr) != needed)
+            {
+                return false;
+            }
             static std::mutex s_mutex;
             std::lock_guard<std::mutex> lock(s_mutex);
             std::ofstream out(path, std::ios::app | std::ios::binary);

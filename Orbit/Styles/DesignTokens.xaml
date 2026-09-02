@@ -36,6 +36,11 @@
     <SolidColorBrush x:Key="OrbitHealthWarnBrush" Color="{StaticResource OrbitHealthWarnColor}" />
     <SolidColorBrush x:Key="OrbitHealthCriticalBrush" Color="{StaticResource OrbitHealthCriticalColor}" />
 
+    <!-- Clean safety tiers -->
+    <SolidColorBrush x:Key="OrbitTierSafeBrush" Color="{StaticResource OrbitHealthGoodColor}" />
+    <SolidColorBrush x:Key="OrbitTierReviewBrush" Color="{StaticResource OrbitHealthWarnColor}" />
+    <SolidColorBrush x:Key="OrbitTierRiskyBrush" Color="{StaticResource OrbitHealthCriticalColor}" />
+
     <!-- Spacing scale -->
     <x:Double x:Key="OrbitSpaceXS">4</x:Double>
     <x:Double x:Key="OrbitSpaceS">8</x:Double>
