@@ -151,7 +151,21 @@ namespace winrt::Orbit::implementation
         {
             auto operation = m_viewModel->ScanAsync();
             UpdateControls();
+            
+            auto timer = DispatcherQueue().CreateTimer();
+            timer.Interval(std::chrono::milliseconds(100));
+            timer.IsRepeating(true);
+            timer.Tick([weakThis = get_weak()](auto&&, auto&&) {
+                if (auto strongThis = weakThis.get())
+                {
+                    strongThis->ScanStatusText().Text(hstring(strongThis->m_viewModel->scanStatus));
+                }
+            });
+            timer.Start();
+            
             co_await operation;
+            
+            timer.Stop();
             m_hasScanned = true;
             RenderResults();
             UpdateControls();
