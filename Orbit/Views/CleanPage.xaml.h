@@ -61,6 +61,7 @@ namespace winrt::Orbit::implementation
         winrt::fire_and_forget ConfirmEmptyRecycleBinAsync();
         void RenderResults();
         void UpdateControls();
+        void UpdateScanLiveUi();
         void ShowFeedback(
             winrt::hstring const& title,
             winrt::hstring const& message,

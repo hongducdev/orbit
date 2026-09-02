@@ -33,6 +33,119 @@ namespace
     {
         return box_value(value).as<IReference<bool>>();
     }
+
+    template <typename T>
+    T Resource(wchar_t const* key)
+    {
+        return Application::Current().Resources().Lookup(box_value(key)).as<T>();
+    }
+
+    wchar_t const* CategoryGlyph(::Orbit::Core::CleanCategoryId id)
+    {
+        switch (id)
+        {
+        case ::Orbit::Core::CleanCategoryId::TempUser: return L"\uE8B7";
+        case ::Orbit::Core::CleanCategoryId::TempSystem: return L"\uE7F8";
+        case ::Orbit::Core::CleanCategoryId::WinUpdateCache: return L"\uE895";
+        case ::Orbit::Core::CleanCategoryId::DeliveryOptimization: return L"\uE753";
+        case ::Orbit::Core::CleanCategoryId::ThumbCache: return L"\uE91B";
+        case ::Orbit::Core::CleanCategoryId::ShaderCache: return L"\uE7FC";
+        case ::Orbit::Core::CleanCategoryId::BrowserTemp: return L"\uE774";
+        case ::Orbit::Core::CleanCategoryId::DevCaches: return L"\uE943";
+        case ::Orbit::Core::CleanCategoryId::WerReports: return L"\uEA39";
+        case ::Orbit::Core::CleanCategoryId::Prefetch: return L"\uE9E9";
+        case ::Orbit::Core::CleanCategoryId::RecycleBin: return L"\uE74D";
+        case ::Orbit::Core::CleanCategoryId::Count: break;
+        }
+        return L"\uE8B7";
+    }
+
+    wchar_t const* TierChipGlyph(::Orbit::Core::CleanTier tier)
+    {
+        switch (tier)
+        {
+        case ::Orbit::Core::CleanTier::Safe: return L"\uE73E";
+        case ::Orbit::Core::CleanTier::Review: return L"\uE946";
+        default: return L"\uE783";
+        }
+    }
+
+    Border BuildCategoryIcon(
+        ::Orbit::Core::CleanCategoryId id,
+        Brush const& foreground,
+        Brush const& background)
+    {
+        Border host;
+        host.Style(Resource<Style>(L"CleanCategoryIconHostStyle"));
+        host.Background(background);
+        FontIcon icon;
+        icon.Glyph(CategoryGlyph(id));
+        icon.FontSize(16);
+        icon.Foreground(foreground);
+        icon.HorizontalAlignment(HorizontalAlignment::Center);
+        icon.VerticalAlignment(VerticalAlignment::Center);
+        host.Child(icon);
+        return host;
+    }
+
+    Border BuildTierChip(
+        hstring const& label,
+        Brush const& foreground,
+        Brush const& background,
+        wchar_t const* glyph)
+    {
+        Border chip;
+        chip.Style(Resource<Style>(L"CleanTierChipStyle"));
+        chip.Background(background);
+
+        StackPanel content;
+        content.Orientation(Orientation::Horizontal);
+        content.Spacing(4);
+        content.HorizontalAlignment(HorizontalAlignment::Center);
+
+        FontIcon icon;
+        icon.Glyph(glyph);
+        icon.FontSize(11);
+        icon.Foreground(foreground);
+        icon.VerticalAlignment(VerticalAlignment::Center);
+        content.Children().Append(icon);
+
+        TextBlock text;
+        text.Text(label);
+        text.FontSize(12);
+        text.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        text.Foreground(foreground);
+        text.VerticalAlignment(VerticalAlignment::Center);
+        content.Children().Append(text);
+
+        chip.Child(content);
+        return chip;
+    }
+
+    StackPanel BuildImpactBlock(hstring const& sizeText, uint32_t fileCount)
+    {
+        StackPanel panel;
+        panel.Spacing(0);
+        panel.VerticalAlignment(VerticalAlignment::Center);
+        panel.MinWidth(120);
+
+        TextBlock size;
+        size.Text(sizeText);
+        size.Style(Resource<Style>(L"CleanImpactSizeStyle"));
+        panel.Children().Append(size);
+
+        TextBlock count;
+        count.Text(hstring(
+            fileCount == 1
+                ? L"1 file"
+                : std::to_wstring(fileCount) + L" files"));
+        count.Style(Resource<Style>(L"OrbitBodySecondaryStyle"));
+        count.FontSize(12);
+        count.TextAlignment(TextAlignment::Right);
+        count.HorizontalAlignment(HorizontalAlignment::Right);
+        panel.Children().Append(count);
+        return panel;
+    }
 }
 
 namespace winrt::Orbit::implementation
@@ -158,7 +271,7 @@ namespace winrt::Orbit::implementation
             timer.Tick([weakThis = get_weak()](auto&&, auto&&) {
                 if (auto strongThis = weakThis.get())
                 {
-                    strongThis->ScanStatusText().Text(hstring(strongThis->m_viewModel->scanStatus));
+                    strongThis->UpdateScanLiveUi();
                 }
             });
             timer.Start();
@@ -452,7 +565,14 @@ namespace winrt::Orbit::implementation
         ScanButton().IsEnabled(!busy);
         CancelButton().Visibility(scanning ? Visibility::Visible : Visibility::Collapsed);
         CancelButton().IsEnabled(scanning && !m_viewModel->cancelRequested.load());
-        ScanProgress().Visibility((scanning || deleting) ? Visibility::Visible : Visibility::Collapsed);
+        ScanProgress().Visibility(deleting ? Visibility::Visible : Visibility::Collapsed);
+
+        if (scanning)
+        {
+            CategoryList().Visibility(Visibility::Collapsed);
+            EmptyState().Visibility(Visibility::Visible);
+        }
+        UpdateScanLiveUi();
 
         if (deleting)
         {
@@ -468,10 +588,6 @@ namespace winrt::Orbit::implementation
             {
                 ScanProgress().IsIndeterminate(true);
             }
-        }
-        else if (scanning)
-        {
-            ScanProgress().IsIndeterminate(true);
         }
 
         SearchBox().IsEnabled(!busy);
@@ -562,18 +678,88 @@ namespace winrt::Orbit::implementation
         FeedbackBar().IsOpen(true);
     }
 
+    void CleanPage::UpdateScanLiveUi()
+    {
+        bool scanning = m_viewModel->isScanning.load();
+        ScanLivePanel().Visibility(scanning ? Visibility::Visible : Visibility::Collapsed);
+        ScanStatusText().Text(hstring(m_viewModel->scanStatus));
+        if (!scanning)
+        {
+            EmptyStateIcon().Glyph(L"\uE9D9");
+            return;
+        }
+
+        uint32_t step = m_viewModel->scanCategoryIndex.load();
+        uint32_t total = m_viewModel->scanCategoryTotal.load();
+        uint32_t files = m_viewModel->scanFilesFound.load();
+        if (total == 0)
+        {
+            total = 1;
+        }
+
+        std::wstring category;
+        std::wstring path;
+        m_viewModel->ReadScanLocation(category, path);
+
+        EmptyStateIcon().Glyph(L"\uE721");
+        EmptyStateTitle().Text(
+            m_viewModel->cancelRequested.load()
+                ? L"Cancelling scan…"
+                : L"Scanning caches");
+        EmptyStateMessage().Text(
+            L"Dry run — nothing is deleted until you review and confirm.");
+
+        ScanLiveCategory().Text(
+            category.empty() ? hstring(L"Preparing…") : hstring(category));
+        wchar_t stepText[32]{};
+        swprintf_s(stepText, L"%u / %u", step, total);
+        ScanLiveStep().Text(stepText);
+
+        ScanCategoryProgress().Maximum(total);
+        ScanCategoryProgress().IsIndeterminate(step == 0);
+        if (step > 0)
+        {
+            ScanCategoryProgress().Value(step);
+        }
+
+        if (path.empty())
+        {
+            ScanLivePath().Text(L"Looking for cache folders…");
+            ToolTipService::SetToolTip(ScanLivePath(), nullptr);
+        }
+        else
+        {
+            ScanLivePath().Text(hstring(path));
+            ToolTipService::SetToolTip(ScanLivePath(), box_value(hstring(path)));
+        }
+
+        wchar_t counts[64]{};
+        swprintf_s(
+            counts,
+            files == 1 ? L"1 file found" : L"%u files found",
+            files);
+        ScanLiveCounts().Text(counts);
+    }
+
     Expander CleanPage::BuildCategory(size_t categoryIndex)
     {
         auto const& category = m_viewModel->categories[categoryIndex];
         Grid header;
-        header.ColumnSpacing(10);
+        header.ColumnSpacing(12);
+        header.MinHeight(56);
+        header.HorizontalAlignment(HorizontalAlignment::Stretch);
+        header.VerticalAlignment(VerticalAlignment::Center);
+        AddColumn(header, GridLengthHelper::Auto());
         AddColumn(header, GridLengthHelper::Auto());
         AddColumn(header, GridLengthHelper::FromValueAndType(1, GridUnitType::Star));
-        AddColumn(header, GridLengthHelper::Auto());
-        AddColumn(header, GridLengthHelper::Auto());
+        AddColumn(header, GridLengthHelper::FromPixels(96));
+        AddColumn(header, GridLengthHelper::FromPixels(128));
 
         CheckBox selectAll;
         selectAll.IsThreeState(true);
+        selectAll.MinWidth(32);
+        selectAll.MinHeight(32);
+        selectAll.VerticalAlignment(VerticalAlignment::Center);
         selectAll.IsEnabled(category.recyclable && !category.files.empty());
         uint32_t selected = category.SelectedCount();
         if (selected == 0)
@@ -606,42 +792,61 @@ namespace winrt::Orbit::implementation
         });
         header.Children().Append(selectAll);
 
+        wchar_t const* chipBackgroundKey = L"OrbitTierRiskyChipBackgroundBrush";
+        if (category.tier == ::Orbit::Core::CleanTier::Safe)
+        {
+            chipBackgroundKey = L"OrbitTierSafeChipBackgroundBrush";
+        }
+        else if (category.tier == ::Orbit::Core::CleanTier::Review)
+        {
+            chipBackgroundKey = L"OrbitTierReviewChipBackgroundBrush";
+        }
+        auto tierForeground = TierBrush(category.tier);
+        auto chipBackground = Resource<Brush>(chipBackgroundKey);
+
+        auto icon = BuildCategoryIcon(category.id, tierForeground, chipBackground);
+        Grid::SetColumn(icon, 1);
+        header.Children().Append(icon);
+
         StackPanel titlePanel;
         titlePanel.Spacing(2);
+        titlePanel.VerticalAlignment(VerticalAlignment::Center);
         TextBlock title;
         title.Text(hstring(category.displayName));
         title.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
+        title.FontSize(14);
         AutomationProperties::SetHeadingLevel(
             title,
             AutomationHeadingLevel::Level2);
         titlePanel.Children().Append(title);
         TextBlock description;
         description.Text(hstring(category.description));
-        description.Style(
-            Application::Current().Resources().Lookup(
-                box_value(L"OrbitBodySecondaryStyle"))
-                .as<winrt::Microsoft::UI::Xaml::Style>());
+        description.Style(Resource<winrt::Microsoft::UI::Xaml::Style>(L"OrbitBodySecondaryStyle"));
+        description.FontSize(12);
         description.TextTrimming(TextTrimming::CharacterEllipsis);
         titlePanel.Children().Append(description);
-        Grid::SetColumn(titlePanel, 1);
+        Grid::SetColumn(titlePanel, 2);
         header.Children().Append(titlePanel);
 
-        TextBlock tier;
-        tier.Text(TierLabel(category.tier));
-        tier.Foreground(TierBrush(category.tier));
-        tier.FontWeight(Windows::UI::Text::FontWeights::SemiBold());
-        Grid::SetColumn(tier, 2);
-        header.Children().Append(tier);
+        auto chip = BuildTierChip(
+            TierLabel(category.tier),
+            tierForeground,
+            chipBackground,
+            TierChipGlyph(category.tier));
+        AutomationProperties::SetName(
+            chip,
+            hstring(L"Safety: ") + TierLabel(category.tier));
+        Grid::SetColumn(chip, 3);
+        header.Children().Append(chip);
 
-        TextBlock impact;
-        impact.Text(hstring(
-            ::Orbit::Platform::ShellOperations::FormatBytes(category.totalBytes) +
-            L" · " + std::to_wstring(category.fileCount) + L" files"));
-        impact.VerticalAlignment(VerticalAlignment::Center);
-        Grid::SetColumn(impact, 3);
+        auto impact = BuildImpactBlock(
+            hstring(::Orbit::Platform::ShellOperations::FormatBytes(category.totalBytes)),
+            category.fileCount);
+        Grid::SetColumn(impact, 4);
         header.Children().Append(impact);
 
         Expander expander;
+        expander.Style(Resource<winrt::Microsoft::UI::Xaml::Style>(L"CleanCategoryExpanderStyle"));
         expander.Header(header);
         expander.IsExpanded(m_expandedCategories[categoryIndex]);
         if (m_expandedCategories[categoryIndex])
@@ -659,7 +864,6 @@ namespace winrt::Orbit::implementation
             ExpanderCollapsedEventArgs const&) {
             m_expandedCategories[categoryIndex] = false;
         });
-        expander.Margin(ThicknessHelper::FromLengths(0, 0, 0, 8));
         return expander;
     }
 

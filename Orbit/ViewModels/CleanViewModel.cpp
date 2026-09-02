@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -80,6 +81,10 @@ namespace Orbit::ViewModels
 
         cancelRequested.store(false);
         scanStatus = L"Scanning caches…";
+        scanCategoryIndex.store(0);
+        scanCategoryTotal.store(static_cast<uint32_t>(categories.size()));
+        scanFilesFound.store(0);
+        PublishScanLocation(L"Preparing…", L"");
         ResetScanResults();
         winrt::apartment_context uiThread;
         std::wstring scanError;
@@ -89,15 +94,20 @@ namespace Orbit::ViewModels
         {
             Core::ScanOptions options;
             std::unordered_set<Core::FileIdentity, Core::FileIdentityHash> seenFiles;
+            uint32_t filesFound = 0;
 
-            for (auto& category : categories)
+            for (size_t index = 0; index < categories.size(); ++index)
             {
+                auto& category = categories[index];
                 if (cancelRequested.load()) break;
 
+                scanCategoryIndex.store(static_cast<uint32_t>(index + 1));
                 scanStatus = L"Scanning " + category.displayName + L"…";
+                PublishScanLocation(category.displayName, category.description);
 
                 if (category.id == Core::CleanCategoryId::RecycleBin)
                 {
+                    PublishScanLocation(category.displayName, L"Recycle Bin (all drives)");
                     category.totalBytes = Platform::ShellOperations::GetRecycleBinSizeBytes();
                     category.fileCount = Platform::ShellOperations::GetRecycleBinItemCount();
                     if (category.fileCount > 0)
@@ -126,6 +136,8 @@ namespace Orbit::ViewModels
                     continue;
                 }
 
+                PublishScanLocation(category.displayName, roots.front());
+
                 std::vector<Core::SkippedEntry> skipped;
                 size_t hiddenCount = 0;
                 uint64_t hiddenBytes = 0;
@@ -139,7 +151,14 @@ namespace Orbit::ViewModels
                     hiddenCount,
                     hiddenBytes,
                     cancelRequested,
-                    nullptr);
+                    [&](Core::ScannedFile const& file) {
+                        uint32_t count = ++filesFound;
+                        scanFilesFound.store(count);
+                        if (count == 1 || (count & 7u) == 0)
+                        {
+                            PublishScanLocation(category.displayName, file.path);
+                        }
+                    });
                 category.hiddenCount = static_cast<uint32_t>(hiddenCount);
                 category.hiddenBytes = hiddenBytes;
 
@@ -546,6 +565,22 @@ namespace Orbit::ViewModels
         selectedBytes = 0;
         totalFiles = 0;
         selectedFiles = 0;
+        scanFilesFound.store(0);
+        scanCategoryIndex.store(0);
+    }
+
+    void CleanViewModel::PublishScanLocation(std::wstring category, std::wstring path)
+    {
+        std::lock_guard<std::mutex> lock(m_scanUiMutex);
+        m_scanCategoryName = std::move(category);
+        m_scanCurrentPath = std::move(path);
+    }
+
+    void CleanViewModel::ReadScanLocation(std::wstring& category, std::wstring& path) const
+    {
+        std::lock_guard<std::mutex> lock(m_scanUiMutex);
+        category = m_scanCategoryName;
+        path = m_scanCurrentPath;
     }
 
     void CleanViewModel::AggregateResults() noexcept

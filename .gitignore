@@ -29,8 +29,7 @@ Orbit/Generated Files/
 Orbit/*_h.h
 
 # ——— NuGet (packages restored via nuget restore; keep packages.config but ignore binaries) ———
-# Uncomment next line if you prefer restore-on-build (recommended for CI)
-# packages/
+packages/
 # Always ignore NuGet cache inside repo
 *.nupkg
 

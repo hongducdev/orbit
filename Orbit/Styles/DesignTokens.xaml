@@ -65,6 +65,55 @@
         <Setter Property="Padding" Value="16" />
     </Style>
 
+    <!-- Clean category list -->
+    <SolidColorBrush x:Key="OrbitTierSafeChipBackgroundBrush" Color="#331A8C7A" />
+    <SolidColorBrush x:Key="OrbitTierReviewChipBackgroundBrush" Color="#33E8A020" />
+    <SolidColorBrush x:Key="OrbitTierRiskyChipBackgroundBrush" Color="#33E05040" />
+
+    <Style x:Key="CleanCategoryListItemStyle" TargetType="ListViewItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="FocusVisualMargin" Value="0" />
+    </Style>
+
+    <Style x:Key="CleanCategoryExpanderStyle" TargetType="Expander">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="CornerRadius" Value="{StaticResource OrbitCardCornerRadius}" />
+        <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="8,4,8,8" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+
+    <Style x:Key="CleanCategoryIconHostStyle" TargetType="Border">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="40" />
+        <Setter Property="CornerRadius" Value="10,10,10,10" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="CleanTierChipStyle" TargetType="Border">
+        <Setter Property="Padding" Value="8,3,8,3" />
+        <Setter Property="CornerRadius" Value="11,11,11,11" />
+        <Setter Property="MinWidth" Value="84" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="CleanImpactSizeStyle" TargetType="TextBlock">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+
     <!-- Planet glyph sizes -->
     <x:Double x:Key="OrbitPlanetGlyphSize">20</x:Double>
     <x:Double x:Key="OrbitPlanetGlyphSizeCompact">16</x:Double>

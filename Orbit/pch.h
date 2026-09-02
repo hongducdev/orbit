@@ -37,18 +37,8 @@
 #include <wil/resource.h>
 #include <wil/com.h>
 
-// Orbit Core — PDH/WMI guards (feature-detect at runtime, min target 17763)
-#include <pdh.h>
-#include <pdhmsg.h>
-#pragma comment(lib, "pdh.lib")
-#include <wbemidl.h>
-#pragma comment(lib, "wbemuuid.lib")
-#include <shlobj.h>
-#include <shobjidl.h>
-#include <shellapi.h>
+// Platform libs used by Core/Platform headers (those headers include the API headers).
 #pragma comment(lib, "shell32.lib")
 #pragma comment(lib, "ole32.lib")
-#include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
-#include <pathcch.h>
 #pragma comment(lib, "pathcch.lib")

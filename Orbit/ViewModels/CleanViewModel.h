@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -86,11 +87,16 @@ namespace Orbit::ViewModels
         bool CanDelete() const noexcept;
         std::wstring TotalReclaimableFormatted() const;
         std::wstring SelectedFormatted() const;
+        void PublishScanLocation(std::wstring category, std::wstring path);
+        void ReadScanLocation(std::wstring& category, std::wstring& path) const;
 
         std::vector<CleanCategoryViewModel> categories;
         std::atomic<bool> isScanning{ false };
         std::atomic<bool> cancelRequested{ false };
         std::atomic<bool> isDeleting{ false };
+        std::atomic<uint32_t> scanCategoryIndex{ 0 };
+        std::atomic<uint32_t> scanCategoryTotal{ 0 };
+        std::atomic<uint32_t> scanFilesFound{ 0 };
         std::wstring scanStatus{ L"Ready to scan" };
         uint64_t totalReclaimableBytes{ 0 };
         uint64_t selectedBytes{ 0 };
@@ -103,6 +109,9 @@ namespace Orbit::ViewModels
 
     private:
         std::unique_ptr<Orbit::Core::WhitelistStore> m_whitelist;
+        mutable std::mutex m_scanUiMutex;
+        std::wstring m_scanCategoryName;
+        std::wstring m_scanCurrentPath;
 
         void ResetScanResults() noexcept;
         void AggregateResults() noexcept;
