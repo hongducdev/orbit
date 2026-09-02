@@ -34,14 +34,46 @@ public:
         }
     };
 
+private:
+    // RAII guard for COM initialization — uninitializes only if we initialized (S_OK)
+    class ComInitializer
+    {
+    public:
+        ComInitializer() noexcept
+        {
+            m_hr = ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+            m_needsUninit = (m_hr == S_OK);
+        }
+
+        ~ComInitializer() noexcept
+        {
+            if (m_needsUninit)
+            {
+                ::CoUninitialize();
+            }
+        }
+
+        ComInitializer(const ComInitializer&) = delete;
+        ComInitializer& operator=(const ComInitializer&) = delete;
+
+        HRESULT Result() const noexcept { return m_hr; }
+        bool Succeeded() const noexcept { return SUCCEEDED(m_hr); }
+
+    private:
+        HRESULT m_hr{ E_FAIL };
+        bool m_needsUninit{ false };
+    };
+
+public:
+
     static DeleteResult DeleteFiles(
         const std::vector<std::wstring>& paths,
         bool permanent)
     {
         if (paths.empty()) return { true, S_OK, 0, 0, L"" };
 
-        HRESULT initializeResult =
-            ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        ComInitializer comInit;
+        HRESULT initializeResult = comInit.Result();
         if (initializeResult == RPC_E_CHANGED_MODE)
         {
             return {
@@ -52,7 +84,7 @@ public:
                 L"File deletion requires a single-threaded COM apartment"
             };
         }
-        if (FAILED(initializeResult))
+        if (!comInit.Succeeded())
         {
             return {
                 false,
@@ -71,7 +103,6 @@ public:
             IID_PPV_ARGS(&operation));
         if (FAILED(result))
         {
-            ::CoUninitialize();
             return {
                 false,
                 result,
@@ -93,7 +124,6 @@ public:
         result = operation->SetOperationFlags(flags);
         if (FAILED(result))
         {
-            ::CoUninitialize();
             return {
                 false,
                 result,
@@ -136,7 +166,6 @@ public:
 
         if (queuedPaths.empty())
         {
-            ::CoUninitialize();
             DeleteResult noItems{
                 false,
                 FAILED(firstQueueError) ? firstQueueError : E_FAIL,
@@ -171,7 +200,6 @@ public:
                 failedPaths.push_back(path);
             }
         }
-        ::CoUninitialize();
 
         if (completedPaths.size() == paths.size())
         {
