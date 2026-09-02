@@ -25,6 +25,8 @@ Orbit/x64/
 Orbit/Debug/
 Orbit/Release/
 Orbit/Generated Files/
+# MIDL-generated ABI headers (machine-local absolute paths; vcxproj uses Generated Files/)
+Orbit/*_h.h
 
 # ——— NuGet (packages restored via nuget restore; keep packages.config but ignore binaries) ———
 # Uncomment next line if you prefer restore-on-build (recommended for CI)

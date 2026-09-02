@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <future>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -245,12 +244,7 @@ namespace Orbit::ViewModels
         Platform::ShellOperations::DeleteResult result;
         try
         {
-            auto deletion = std::async(
-                std::launch::async,
-                [paths = std::move(filesystemPaths), permanent]() {
-                    return Platform::ShellOperations::DeleteFiles(paths, permanent);
-                });
-            result = deletion.get();
+            result = Platform::ShellOperations::DeleteFiles(filesystemPaths, permanent);
         }
         catch (...)
         {
@@ -337,10 +331,7 @@ namespace Orbit::ViewModels
         Platform::ShellOperations::DeleteResult result;
         try
         {
-            auto deletion = std::async(
-                std::launch::async,
-                []() { return Platform::ShellOperations::EmptyRecycleBin(); });
-            result = deletion.get();
+            result = Platform::ShellOperations::EmptyRecycleBin();
         }
         catch (...)
         {
