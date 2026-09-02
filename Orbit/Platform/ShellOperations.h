@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include <functional>
+#include <atomic>
 #include <wil/com.h>
 #include <wil/resource.h>
 
@@ -33,6 +35,9 @@ public:
             return completedCount > 0 && completedCount < requestedCount;
         }
     };
+
+    // Progress callback for delete operations
+    using ProgressCallback = std::function<void(uint32_t completed, uint32_t total)>;
 
 private:
     // RAII guard for COM initialization — uninitializes only if we initialized (S_OK)
@@ -64,11 +69,97 @@ private:
         bool m_needsUninit{ false };
     };
 
+    // IFileOperationProgressSink implementation for progress tracking
+    class FileOperationProgressSink : public IFileOperationProgressSink
+    {
+    public:
+        FileOperationProgressSink(
+            uint32_t totalItems,
+            ProgressCallback callback) :
+            m_refCount(1),
+            m_totalItems(totalItems),
+            m_completedItems(0),
+            m_callback(std::move(callback))
+        {
+        }
+
+        // IUnknown
+        STDMETHODIMP QueryInterface(REFIID riid, void** ppv) override
+        {
+            if (!ppv) return E_POINTER;
+            *ppv = nullptr;
+            if (riid == IID_IUnknown || riid == IID_IFileOperationProgressSink)
+            {
+                *ppv = static_cast<IFileOperationProgressSink*>(this);
+                AddRef();
+                return S_OK;
+            }
+            return E_NOINTERFACE;
+        }
+
+        STDMETHODIMP_(ULONG) AddRef() override
+        {
+            return InterlockedIncrement(&m_refCount);
+        }
+
+        STDMETHODIMP_(ULONG) Release() override
+        {
+            ULONG count = InterlockedDecrement(&m_refCount);
+            if (count == 0)
+            {
+                delete this;
+            }
+            return count;
+        }
+
+        // IFileOperationProgressSink
+        STDMETHODIMP StartOperations() override { return S_OK; }
+        STDMETHODIMP FinishOperations(HRESULT) override { return S_OK; }
+        STDMETHODIMP PreRenameItem(DWORD, IShellItem*, LPCWSTR) override { return S_OK; }
+        STDMETHODIMP PostRenameItem(DWORD, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override { return S_OK; }
+        STDMETHODIMP PreMoveItem(DWORD, IShellItem*, IShellItem*, LPCWSTR) override { return S_OK; }
+        STDMETHODIMP PostMoveItem(DWORD, IShellItem*, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override { return S_OK; }
+        STDMETHODIMP PreCopyItem(DWORD, IShellItem*, IShellItem*, LPCWSTR) override { return S_OK; }
+        STDMETHODIMP PostCopyItem(DWORD, IShellItem*, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override { return S_OK; }
+        STDMETHODIMP PreDeleteItem(DWORD, IShellItem*) override { return S_OK; }
+
+        STDMETHODIMP PostDeleteItem(
+            DWORD,
+            IShellItem*,
+            HRESULT hrDelete,
+            IShellItem*) override
+        {
+            if (SUCCEEDED(hrDelete))
+            {
+                ++m_completedItems;
+                if (m_callback)
+                {
+                    m_callback(m_completedItems, m_totalItems);
+                }
+            }
+            return S_OK;
+        }
+
+        STDMETHODIMP PreNewItem(DWORD, IShellItem*, LPCWSTR) override { return S_OK; }
+        STDMETHODIMP PostNewItem(DWORD, IShellItem*, LPCWSTR, LPCWSTR, DWORD, HRESULT, IShellItem*) override { return S_OK; }
+        STDMETHODIMP UpdateProgress(UINT, UINT) override { return S_OK; }
+        STDMETHODIMP ResetTimer() override { return S_OK; }
+        STDMETHODIMP PauseTimer() override { return S_OK; }
+        STDMETHODIMP ResumeTimer() override { return S_OK; }
+
+    private:
+        volatile ULONG m_refCount;
+        uint32_t m_totalItems;
+        std::atomic<uint32_t> m_completedItems;
+        ProgressCallback m_callback;
+    };
+
 public:
 
     static DeleteResult DeleteFiles(
         const std::vector<std::wstring>& paths,
-        bool permanent)
+        bool permanent,
+        ProgressCallback progressCallback = nullptr)
     {
         if (paths.empty()) return { true, S_OK, 0, 0, L"" };
 
@@ -177,7 +268,30 @@ public:
             return noItems;
         }
 
+        // Attach progress sink if callback provided
+        DWORD progressCookie = 0;
+        FileOperationProgressSink* progressSink = nullptr;
+        if (progressCallback)
+        {
+            progressSink = new FileOperationProgressSink(
+                static_cast<uint32_t>(queuedPaths.size()),
+                progressCallback);
+            result = operation->Advise(progressSink, &progressCookie);
+            if (FAILED(result))
+            {
+                progressSink->Release();
+                progressSink = nullptr;
+            }
+        }
+
         result = operation->PerformOperations();
+
+        if (progressSink)
+        {
+            operation->Unadvise(progressCookie);
+            progressSink->Release();
+        }
+
         BOOL aborted = FALSE;
         operation->GetAnyOperationsAborted(&aborted);
 

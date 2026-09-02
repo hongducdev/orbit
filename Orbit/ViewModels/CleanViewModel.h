@@ -96,6 +96,8 @@ namespace Orbit::ViewModels
         uint64_t selectedBytes{ 0 };
         uint32_t totalFiles{ 0 };
         uint32_t selectedFiles{ 0 };
+        std::atomic<uint32_t> cleanCompleted{ 0 };
+        std::atomic<uint32_t> cleanTotal{ 0 };
         Orbit::Platform::ShellOperations::DeleteResult lastDeleteResult{};
         bool lastOperationLogged{ true };
 
