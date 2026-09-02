@@ -39,6 +39,8 @@ struct FileSizeResult
     bool usedFallback{ false };
 };
 
+using HardlinkTracker = std::unordered_set<FileIdentity, FileIdentityHash>;
+
 // SizeCalculator — hardlink-aware sizing. Hardlink dedup only for nNumberOfLinks>1 to bound memory.
 class SizeCalculator
 {

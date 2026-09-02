@@ -69,6 +69,7 @@
     <SolidColorBrush x:Key="OrbitTierSafeChipBackgroundBrush" Color="#331A8C7A" />
     <SolidColorBrush x:Key="OrbitTierReviewChipBackgroundBrush" Color="#33E8A020" />
     <SolidColorBrush x:Key="OrbitTierRiskyChipBackgroundBrush" Color="#33E05040" />
+    <SolidColorBrush x:Key="OrbitJupiterChipBackgroundBrush" Color="#33E8A020" />
 
     <Style x:Key="CleanCategoryListItemStyle" TargetType="ListViewItem">
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -79,6 +80,27 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="FocusVisualMargin" Value="0" />
+    </Style>
+
+    <!-- Suppress the square ListView hover so the inner rounded card can paint its own. -->
+    <Style x:Key="AnalyzeLocationListItemStyle" TargetType="ListViewItem" BasedOn="{StaticResource CleanCategoryListItemStyle}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListViewItem">
+                    <ListViewItemPresenter
+                        ContentMargin="0"
+                        Padding="{TemplateBinding Padding}"
+                        HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                        VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                        PointerOverBackground="Transparent"
+                        PressedBackground="Transparent"
+                        SelectedBackground="Transparent"
+                        SelectedPointerOverBackground="Transparent"
+                        SelectedPressedBackground="Transparent"
+                        SelectionCheckMarkVisualEnabled="False" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style x:Key="CleanCategoryExpanderStyle" TargetType="Expander">
@@ -107,6 +129,19 @@
         <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
 
+    <Style x:Key="AnalyzeOptionComboStyle" TargetType="ComboBox">
+        <Setter Property="MinWidth" Value="120" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="10,4,8,4" />
+    </Style>
+    <Style x:Key="AnalyzeOptionLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Opacity" Value="0.6" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style x:Key="CleanImpactSizeStyle" TargetType="TextBlock">
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="14" />
@@ -129,7 +164,25 @@
         <Setter Property="Opacity" Value="0.6" />
     </Style>
 
-    <!-- Placeholder page icon -->
+    <!-- Treemap category fills -->
+    <SolidColorBrush x:Key="OrbitTreemapMediaBrush" Color="#C4A574" />
+    <SolidColorBrush x:Key="OrbitTreemapDocsBrush" Color="#6E7F6B" />
+    <SolidColorBrush x:Key="OrbitTreemapSystemBrush" Color="#8B6E7A" />
+    <SolidColorBrush x:Key="OrbitTreemapLargeBrush" Color="#C4785A" />
+    <SolidColorBrush x:Key="OrbitTreemapOtherBrush" Color="#5D6D7E" />
+    <SolidColorBrush x:Key="OrbitTreemapCloudBrush" Color="#3A4A5A" />
+    <SolidColorBrush x:Key="OrbitTreemapTanBrush" Color="#C4A574" />
+    <SolidColorBrush x:Key="OrbitTreemapOchreBrush" Color="#D4A054" />
+    <SolidColorBrush x:Key="OrbitTreemapPurpleBrush" Color="#8B6E7A" />
+    <SolidColorBrush x:Key="OrbitTreemapTerraBrush" Color="#C4785A" />
+    <SolidColorBrush x:Key="OrbitTreemapSageBrush" Color="#6E7F6B" />
+    <SolidColorBrush x:Key="OrbitTreemapSlateBrush" Color="#5D6D7E" />
+
+    <Style x:Key="AnalyzeTreemapTileStyle" TargetType="Border">
+        <Setter Property="CornerRadius" Value="4,4,4,4" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
     <Style x:Key="OrbitPlaceholderIconStyle" TargetType="FontIcon">
         <Setter Property="FontSize" Value="48" />
         <Setter Property="Opacity" Value="0.9" />

@@ -144,8 +144,15 @@
     <ClInclude Include="Core\CleanCategoryProber.h" />
     <ClInclude Include="Core\FileScanner.h" />
     <ClInclude Include="Core\WhitelistStore.h" />
+    <ClInclude Include="Core\FileNode.h" />
+    <ClInclude Include="Core\DiskAnalyzer.h" />
+    <ClInclude Include="Core\FastDirSize.h" />
+    <ClInclude Include="Views\AnalyzeBarRow.h" />
+    <ClInclude Include="Core\TreemapLayout.h" />
     <ClInclude Include="Platform\ShellOperations.h" />
+    <ClInclude Include="Platform\PathHelpers.h" />
     <ClInclude Include="ViewModels\CleanViewModel.h" />
+    <ClInclude Include="ViewModels\AnalyzeViewModel.h" />
     <ClInclude Include="Core\SystemMonitorContracts.h" />
     <ClInclude Include="Helpers\AppSettings.h" />
     <ClInclude Include="ViewModels\ViewModelBase.h" />
@@ -155,6 +162,7 @@
     <ClInclude Include="Views\AnalyzePage.xaml.h">
       <DependentUpon>AnalyzePage.xaml</DependentUpon>
     </ClInclude>
+    <ClInclude Include="Views\AnalyzeTreemapControl.h" />
     <ClInclude Include="Views\SoftwarePage.xaml.h">
       <DependentUpon>SoftwarePage.xaml</DependentUpon>
     </ClInclude>
@@ -202,6 +210,11 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </ClCompile>
     <ClCompile Include="ViewModels\CleanViewModel.cpp" />
+    <ClCompile Include="ViewModels\AnalyzeViewModel.cpp" />
+    <ClCompile Include="Core\DiskAnalyzer.cpp" />
+    <ClCompile Include="Core\FastDirSize.cpp" />
+    <ClCompile Include="Core\TreemapLayout.cpp" />
+    <ClCompile Include="Views\AnalyzeTreemapControl.cpp" />
     <ClCompile Include="Views\CleanPage.xaml.cpp">
       <DependentUpon>CleanPage.xaml</DependentUpon>
     </ClCompile>

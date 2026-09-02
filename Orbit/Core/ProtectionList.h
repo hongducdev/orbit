@@ -62,6 +62,30 @@ public:
         return (attrs & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0;
     }
 
+    // System locations that Analyze must never send to Recycle Bin.
+    // User Documents/Pictures trees are allowed when the user picks them explicitly.
+    static bool IsSystemProtected(std::wstring_view path) noexcept
+    {
+        if (path.empty()) return true;
+        std::wstring lower = ToLower(Canonicalize(Normalize(path)));
+        std::wstring suffix = SuffixAfterRoot(lower);
+        static const std::wstring kDeniedSuffixes[] = {
+            L"\\windows",
+            L"\\program files",
+            L"\\program files (x86)",
+            L"\\programdata",
+            L"\\system volume information",
+            L"\\$recycle.bin",
+            L"\\recovery",
+        };
+        for (auto const& denied : kDeniedSuffixes)
+        {
+            if (IsPrefixOrEqual(suffix, denied))
+                return true;
+        }
+        return IsUserProfileRoot(lower);
+    }
+
 private:
     static std::wstring Normalize(std::wstring_view sv)
     {

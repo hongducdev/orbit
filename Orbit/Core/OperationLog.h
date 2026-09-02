@@ -12,7 +12,7 @@
 namespace Orbit::Core
 {
 
-enum class OperationKind : uint8_t { Clean, Uninstall, Optimize };
+enum class OperationKind : uint8_t { Clean, Uninstall, Optimize, Analyze };
 enum class OperationOutcome : uint8_t { Success, Partial, Failed };
 enum class Destination : uint8_t { Recycle, Permanent };
 
@@ -54,7 +54,13 @@ struct OperationLogEntry
             return out;
         };
         auto kindStr = [&]() -> const wchar_t* {
-            switch (op) { case OperationKind::Clean: return L"clean"; case OperationKind::Uninstall: return L"uninstall"; default: return L"optimize"; }
+            switch (op)
+            {
+            case OperationKind::Clean: return L"clean";
+            case OperationKind::Uninstall: return L"uninstall";
+            case OperationKind::Analyze: return L"analyze";
+            default: return L"optimize";
+            }
         };
         auto destStr = (dest == Destination::Recycle) ? L"recycle" : L"perm";
         auto outcomeStr = [&]() -> const wchar_t* {

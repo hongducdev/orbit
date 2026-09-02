@@ -8,21 +8,346 @@
     NavigationCacheMode="Enabled"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Padding="32">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" MaxWidth="560">
-            <FontIcon Glyph="&#xEDA3;" Style="{StaticResource OrbitPlaceholderIconStyle}" Foreground="{StaticResource OrbitJupiterBrush}" />
-            <TextBlock Text="Jupiter — Analyze" Style="{StaticResource OrbitTitleTextStyle}" HorizontalAlignment="Center" FontSize="28" />
-            <TextBlock Text="Treemap disk analyzer with drill-down, hardlink-aware sizing, and Recycle Bin actions."
-                       TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
-                       Style="{StaticResource OrbitBodySecondaryStyle}" />
-            <Border Style="{StaticResource MoleCardStyle}" Margin="0,12,0,0">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Coming in Phase 4" FontWeight="SemiBold" />
-                    <TextBlock Text="Squarified layout on Canvas, FindFirstFileExW scanning, reparse-point safe, progressive load for 1M+ files."
-                               TextWrapping="Wrap" Opacity="0.7" />
-                    <HyperlinkButton Content="Mole reference — mo analyze" NavigateUri="https://mole.fit" />
-                </StackPanel>
-            </Border>
+    <Grid x:Name="RootGrid" Padding="32" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="240" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <FontIcon
+                Glyph="&#xEDA3;"
+                FontSize="32"
+                Foreground="{StaticResource OrbitJupiterBrush}"
+                AutomationProperties.Name="Analyze icon" />
+            <StackPanel Spacing="2">
+                <TextBlock
+                    x:Name="TitleText"
+                    Text="Jupiter — Analyze"
+                    Style="{StaticResource OrbitTitleTextStyle}"
+                    FontSize="28"
+                    AutomationProperties.HeadingLevel="Level1" />
+                <TextBlock
+                    x:Name="FreeSpaceText"
+                    Style="{StaticResource OrbitBodySecondaryStyle}"
+                    Text="Pick a location to explore, or scan the selected drive."
+                    TextWrapping="Wrap" />
+            </StackPanel>
         </StackPanel>
+
+        <Grid Grid.Row="1" ColumnSpacing="12" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="ScanButton"
+                Content="Scan drive"
+                Style="{StaticResource AccentButtonStyle}"
+                Click="ScanButton_Click"
+                AutomationProperties.Name="Scan selected drive" />
+            <Button
+                x:Name="CancelButton"
+                Grid.Column="1"
+                Content="Cancel scan"
+                Click="CancelButton_Click"
+                Visibility="Collapsed"
+                AutomationProperties.Name="Cancel disk scan" />
+            <ComboBox
+                x:Name="DriveCombo"
+                Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Center"
+                SelectionChanged="DriveCombo_SelectionChanged"
+                AutomationProperties.Name="Drive to scan" />
+            <Button
+                x:Name="RefreshOverviewButton"
+                Grid.Column="4"
+                Content="Refresh sizes"
+                Click="RefreshOverview_Click"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Measure location sizes" />
+            <Button
+                x:Name="MoreButton"
+                Grid.Column="5"
+                Content="Options"
+                Click="MoreButton_Click"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Show scan options" />
+
+            <AutoSuggestBox
+                x:Name="FilterBox"
+                Grid.Row="1"
+                Grid.ColumnSpan="6"
+                QueryIcon="Find"
+                PlaceholderText="Search folders or files"
+                TextChanged="FilterBox_TextChanged"
+                AutomationProperties.Name="Filter current folder by name" />
+            <ProgressBar
+                x:Name="ScanProgress"
+                Grid.Row="2"
+                Grid.ColumnSpan="6"
+                IsIndeterminate="True"
+                Visibility="Collapsed"
+                AutomationProperties.Name="Scanning disk" />
+            <Border
+                x:Name="OptionsRow"
+                Grid.Row="3"
+                Grid.ColumnSpan="6"
+                Style="{StaticResource MoleCardStyle}"
+                Padding="14,8"
+                Visibility="Collapsed">
+                <ScrollViewer
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled"
+                    HorizontalScrollMode="Enabled"
+                    VerticalScrollMode="Disabled">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon
+                            Glyph="&#xE713;"
+                            FontSize="14"
+                            Foreground="{StaticResource OrbitJupiterBrush}"
+                            VerticalAlignment="Center" />
+                        <TextBlock
+                            Text="Options"
+                            FontWeight="SemiBold"
+                            FontSize="13"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Border
+                        Width="1"
+                        Height="18"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        VerticalAlignment="Center" />
+                    <CheckBox
+                        x:Name="RemovableCheck"
+                        Content="Removable drives"
+                        Checked="RemovableCheck_Changed"
+                        Unchecked="RemovableCheck_Changed"
+                        VerticalAlignment="Center"
+                        MinWidth="0"
+                        AutomationProperties.Name="Include removable and network drives" />
+                    <Border
+                        Width="1"
+                        Height="18"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Sort" Style="{StaticResource AnalyzeOptionLabelStyle}" />
+                        <ComboBox
+                            x:Name="SortCombo"
+                            Style="{StaticResource AnalyzeOptionComboStyle}"
+                            SelectedIndex="0"
+                            SelectionChanged="SortCombo_SelectionChanged"
+                            AutomationProperties.Name="Sort treemap items">
+                            <ComboBoxItem Content="By size" />
+                            <ComboBoxItem Content="By name" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Group" Style="{StaticResource AnalyzeOptionLabelStyle}" />
+                        <ComboBox
+                            x:Name="GroupSmallCombo"
+                            Style="{StaticResource AnalyzeOptionComboStyle}"
+                            SelectedIndex="1"
+                            SelectionChanged="GroupSmallCombo_SelectionChanged"
+                            AutomationProperties.Name="Group small files threshold">
+                            <ComboBoxItem Content="Off" />
+                            <ComboBoxItem Content="Under 1 MB" />
+                            <ComboBoxItem Content="Under 10 MB" />
+                            <ComboBoxItem Content="Under 50 MB" />
+                        </ComboBox>
+                    </StackPanel>
+                    <Border
+                        Width="1"
+                        Height="18"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        VerticalAlignment="Center" />
+                    <CheckBox
+                        x:Name="ShowFilesToggle"
+                        Content="Show files"
+                        IsChecked="True"
+                        Checked="ShowFilesToggle_Toggled"
+                        Unchecked="ShowFilesToggle_Toggled"
+                        VerticalAlignment="Center"
+                        MinWidth="0"
+                        AutomationProperties.Name="Show files in treemap" />
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <InfoBar
+            x:Name="FeedbackBar"
+            Grid.Row="2"
+            IsOpen="False"
+            IsClosable="True"
+            AutomationProperties.LiveSetting="Polite" />
+
+        <Grid Grid.Row="3" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button
+                x:Name="BackButton"
+                Content="Locations"
+                Click="BackButton_Click"
+                Visibility="Collapsed"
+                VerticalAlignment="Center"
+                AutomationProperties.Name="Back to location overview" />
+            <BreadcrumbBar
+                x:Name="PathCrumbs"
+                Grid.Column="1"
+                Visibility="Collapsed"
+                ItemClicked="PathCrumbs_ItemClicked" />
+        </Grid>
+
+        <Grid Grid.Row="4">
+            <Grid x:Name="OverviewCard">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <TextBlock
+                    x:Name="OverviewStatus"
+                    Text="Select a location to explore"
+                    FontWeight="SemiBold"
+                    Margin="0,0,0,8" />
+                <ListView
+                    x:Name="OverviewList"
+                    Grid.Row="1"
+                    SelectionMode="None"
+                    IsItemClickEnabled="True"
+                    ItemClick="OverviewList_ItemClick"
+                    ItemContainerStyle="{StaticResource AnalyzeLocationListItemStyle}"
+                    AutomationProperties.Name="Suggested locations" />
+            </Grid>
+            <Grid x:Name="ExplorerHost" Visibility="Collapsed" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Style="{StaticResource MoleCardStyle}" Padding="12">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                            x:Name="SidebarSummary"
+                            Text="—"
+                            FontWeight="SemiBold"
+                            FontSize="16" />
+                        <TextBlock
+                            Grid.Row="1"
+                            Text="Current folder"
+                            Style="{StaticResource OrbitBodySecondaryStyle}"
+                            FontSize="12" />
+                        <ListView
+                            x:Name="DetailList"
+                            Grid.Row="2"
+                            IsItemClickEnabled="True"
+                            ItemClick="DetailList_ItemClick"
+                            SelectionMode="None"
+                            ItemContainerStyle="{StaticResource CleanCategoryListItemStyle}"
+                            AutomationProperties.Name="Folder contents">
+                            <ListView.ItemContainerTransitions>
+                                <TransitionCollection />
+                            </ListView.ItemContainerTransitions>
+                        </ListView>
+                        <TextBlock
+                            Grid.Row="3"
+                            Text="Right-click a tile: Open / Trash"
+                            Style="{StaticResource OrbitBodySecondaryStyle}"
+                            FontSize="11" />
+                    </Grid>
+                </Border>
+                <Border
+                    x:Name="TreemapBorder"
+                    Grid.Column="1"
+                    Style="{StaticResource MoleCardStyle}"
+                    Padding="0"
+                    SizeChanged="TreemapHost_SizeChanged">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid>
+                            <TextBlock
+                                x:Name="StatusText"
+                                Margin="16,12,16,10"
+                                Text="Select a location to explore"
+                                Style="{StaticResource OrbitBodySecondaryStyle}"
+                                TextTrimming="CharacterEllipsis" />
+                            <ProgressBar
+                                x:Name="MapProgress"
+                                Height="3"
+                                Minimum="0"
+                                Maximum="1"
+                                Value="0"
+                                Margin="16,0,16,0"
+                                VerticalAlignment="Bottom"
+                                Visibility="Collapsed"
+                                AutomationProperties.Name="Folder sizing progress" />
+                        </Grid>
+                        <Canvas
+                            x:Name="TreemapCanvas"
+                            Grid.Row="1"
+                            Margin="8"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <Border
+            x:Name="ActionBar"
+            Grid.Row="5"
+            Style="{StaticResource MoleCardStyle}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="2" VerticalAlignment="Center">
+                    <TextBlock
+                        x:Name="SelectionText"
+                        Text="No items selected"
+                        FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="Scan is a dry run until you confirm moving items to the Recycle Bin."
+                        Style="{StaticResource OrbitBodySecondaryStyle}" />
+                </StackPanel>
+                <Button
+                    x:Name="RecycleButton"
+                    Grid.Column="1"
+                    Content="Move to Recycle Bin"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="RecycleButton_Click"
+                    IsEnabled="False"
+                    AutomationProperties.Name="Move selected items to Recycle Bin" />
+            </Grid>
+        </Border>
     </Grid>
 </Page>
