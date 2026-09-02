@@ -125,6 +125,8 @@ namespace Orbit::ViewModels
                 }
 
                 std::vector<Core::SkippedEntry> skipped;
+                size_t hiddenCount = 0;
+                uint64_t hiddenBytes = 0;
                 auto scanned = Core::FileScanner::ScanCategory(
                     category.id,
                     roots,
@@ -132,10 +134,12 @@ namespace Orbit::ViewModels
                     m_whitelist.get(),
                     seenFiles,
                     skipped,
-                    category.hiddenCount,
-                    category.hiddenBytes,
+                    hiddenCount,
+                    hiddenBytes,
                     cancelRequested,
                     nullptr);
+                category.hiddenCount = static_cast<uint32_t>(hiddenCount);
+                category.hiddenBytes = hiddenBytes;
 
                 std::wstring pattern;
                 if (Core::CleanCategoryProber::FilePattern(category.id, pattern))
