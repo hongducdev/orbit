@@ -39,5 +39,3 @@ Hoặc mở `Orbit.sln` trong Visual Studio, cấu hình **Debug | x64**, nhấn
 ## License
 
 Chưa công bố. Copyright hongducdev.
-
-Open a PR. Do not commit packages/, Generated Files/, or *_h.h.
